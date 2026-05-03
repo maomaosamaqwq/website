@@ -8,7 +8,7 @@
 
 - **主域名：** [仙狐大人.我爱你](https://仙狐大人.我爱你)
 - **备用域名：** https://maomaosamaqwq.github.io/website/
-- **API：** https://api.仙狐大人.爱你
+- **API：** https://api.仙狐大人.我爱你
 
 ## ✨ 功能特色
 
@@ -23,25 +23,32 @@
 - **Token 计数** — 实时显示对话 token 使用量
 - **响应式设计** — 手机、平板、电脑都能用
 - **星空穿越动画** — 启动页的酷炫视觉效果
+- **人机验证** — 注册时自动完成 Turnstile 验证，防止机器人刷号
+- **一键登录/注册** — 自动判断账号是否存在，无需手动切换模式
 
 ## 🛠️ 技术栈
 
 - **前端：** HTML + CSS + JavaScript
 - **托管：** GitHub Pages
-- **后端：** Cloudflare Workers（API 代理 + 消息存储）
+- **后端：** Cloudflare Workers（ES Module 格式）
 - **存储：** Cloudflare KV（云端）+ localStorage（本地兜底）
 - **AI：** DeepSeek Chat API
 - **DNS：** Cloudflare
+- **人机验证：** Cloudflare Turnstile
 
 ## 🏗️ 架构
 
 ```
-用户 → GitHub Pages (仙狐大人.爱你)
+用户 → GitHub Pages (仙狐大人.我爱你)
          ↓
-    Cloudflare Workers (maomao-api)
-         ├── /chat → DeepSeek API（AI 对话）
-         ├── /search → DuckDuckGo（联网搜索）
-         └── /messages → KV（云端存储）
+    Cloudflare Workers API (api.仙狐大人.我爱你)
+         ├── /chat → DeepSeek API（AI 流式对话）
+         ├── /search → DuckDuckGo / Bing（联网搜索）
+         ├── /register → Turnstile 验证 → KV 存储
+         ├── /login → 验证 → 发放 Token
+         ├── /verify → Token 校验
+         ├── /messages → KV（云端消息存储）
+         └── /conversations → KV（对话列表管理）
 ```
 
 ## 📦 本地运行
@@ -51,6 +58,8 @@ git clone https://github.com/maomaosamaqwq/website.git
 cd website
 # 直接用浏览器打开 index.html 即可
 ```
+
+⚠️ 注意：本地打开时无法使用 API 功能和云端存储，需要部署到支持 HTTPS 的环境。
 
 ## 💬 加入交流
 
