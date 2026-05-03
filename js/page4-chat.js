@@ -67,11 +67,17 @@ const ChatPage = {
       searchToggle.addEventListener('click', () => this.toggleSearch());
     }
 
+    // 同步按钮
+    const syncBtn = document.getElementById('btn-sync');
+    if (syncBtn) {
+      syncBtn.addEventListener('click', () => this.manualSync());
+    }
+
     // 开箱即用，直接进入聊天
     this.enterChat();
 
-    // 立即从云端同步数据
-    this.tryCloudSync();
+    // 立即从云端同步数据（延迟一点等页面渲染完成）
+    setTimeout(() => this.tryCloudSync(), 200);
   },
 
   /* ========== 云端同步 ========== */
@@ -597,6 +603,26 @@ const ChatPage = {
     } catch {}
     
     return null;
+  },
+
+  /* ========== 手动同步 ========== */
+  async manualSync() {
+    const btn = document.getElementById('btn-sync');
+    if (btn) {
+      btn.textContent = '⏳';
+      btn.style.pointerEvents = 'none';
+    }
+    
+    await this.tryCloudSync();
+    
+    if (btn) {
+      btn.textContent = '🔄';
+      btn.style.pointerEvents = '';
+      // 闪烁提示
+      btn.style.animation = 'none';
+      btn.offsetHeight; // 触发回流
+      btn.style.animation = 'syncFlash 0.5s ease';
+    }
   },
 
   /* ========== 联网搜索开关 ========== */

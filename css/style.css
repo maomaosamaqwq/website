@@ -139,6 +139,25 @@
   50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
 }
 
+/* 同步按钮 */
+.btn-sync {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  transition: transform 0.3s;
+}
+.btn-sync:hover {
+  color: var(--orange);
+  transform: rotate(180deg);
+}
+@keyframes syncFlash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 /* 联网搜索按钮 */
 .btn-search-toggle {
   background: transparent;
