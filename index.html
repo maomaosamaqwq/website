@@ -81,8 +81,8 @@
         <p class="login-desc">输入账号密码开始聊天</p>
         <input type="text" id="login-username" placeholder="用户名" class="login-input" autocomplete="username">
         <input type="password" id="login-password" placeholder="密码" class="login-input" autocomplete="current-password" style="margin-top:10px;">
-        <div class="cf-turnstile" data-sitekey="0x4AAAAAADIYNHzN1vYcbr3x" id="turnstile-widget" style="margin: 12px auto;"></div>
         <button class="login-btn" id="btn-login">登录 / 注册</button>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADIYNHzN1vYcbr3x" id="turnstile-widget" data-callback="onTurnstileSuccess" style="margin: 12px auto;"></div>
         <p class="login-register-link" id="login-register-link" style="display:none;"></p>
       </div>
     </div>
