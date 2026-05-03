@@ -1256,3 +1256,15 @@ html, body {
   cursor: not-allowed;
   transform: none;
 }
+
+.login-register-link {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+  margin-top: 16px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.login-register-link:hover {
+  color: var(--orange, #f59e0b);
+}

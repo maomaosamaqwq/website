@@ -25,16 +25,26 @@ const ChatPage = {
       connectOpacity: 0.08,
     });
 
-    // 读取已保存的 token
+    // 读取已保存的信息
     this.token = localStorage.getItem('maomao_token') || '';
+    this.savedUsername = localStorage.getItem('maomao_username') || '';
 
     // 登录相关
     document.getElementById('btn-login').addEventListener('click', () => this.login());
-    document.getElementById('login-input').addEventListener('keydown', (e) => {
+    document.getElementById('login-password').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this.login();
     });
+    document.getElementById('login-username').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('login-password').focus();
+    });
 
-    // 如果有 token，先验证是否有效，有效则进入聊天
+    // 注册链接
+    const registerLink = document.getElementById('login-register-link');
+    if (registerLink) {
+      registerLink.addEventListener('click', () => this.toggleRegister());
+    }
+
+    // 如果有 token，直接进入聊天
     if (this.token) {
       this.loginPage.style.display = 'none';
       this.chatPage.style.display = 'flex';
@@ -42,6 +52,29 @@ const ChatPage = {
 
     // 聊天界面初始化
     this.initChat();
+  },
+
+  get loginPage() { return document.getElementById('login-page'); },
+  get chatPage() { return document.getElementById('chat-messages'); },
+
+  // 注册/登录模式切换
+  isRegisterMode: false,
+
+  toggleRegister() {
+    this.isRegisterMode = !this.isRegisterMode;
+    const btn = document.getElementById('btn-login');
+    const link = document.getElementById('login-register-link');
+    const title = document.querySelector('.login-desc');
+    
+    if (this.isRegisterMode) {
+      btn.textContent = '注册';
+      link.textContent = '已有账号？登录';
+      title.textContent = '注册新账号';
+    } else {
+      btn.textContent = '登录';
+      link.textContent = '还没有账号？注册';
+      title.textContent = '输入账号密码开始聊天';
+    }
   },
 
   get loginPage() { return document.getElementById('login-page'); },
@@ -99,19 +132,23 @@ const ChatPage = {
 
   /* ========== 登录 ========== */
   async login() {
-    const input = document.getElementById('login-input');
-    const password = input.value.trim();
-    if (!password) return;
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value.trim();
+    if (!username || !password) {
+      alert('请输入用户名和密码');
+      return;
+    }
 
     const btn = document.getElementById('btn-login');
-    btn.textContent = '登录中...';
+    btn.textContent = this.isRegisterMode ? '注册中...' : '登录中...';
     btn.disabled = true;
 
     try {
-      const resp = await this.apiFetch('/login', {
+      const endpoint = this.isRegisterMode ? '/register' : '/login';
+      const resp = await this.apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ username, password })
       });
 
       if (!resp) {
@@ -124,6 +161,7 @@ const ChatPage = {
       if (data.success) {
         this.token = data.token;
         localStorage.setItem('maomao_token', this.token);
+        localStorage.setItem('maomao_username', username);
         
         this.loginPage.style.display = 'none';
         this.chatPage.style.display = 'flex';
@@ -131,12 +169,12 @@ const ChatPage = {
         // 登录成功，同步数据
         setTimeout(() => this.tryCloudSync(), 200);
       } else {
-        alert('密码错误，请重试');
+        alert(data.error || '操作失败');
       }
     } catch (e) {
-      alert('登录失败: ' + e.message);
+      alert('操作失败: ' + e.message);
     } finally {
-      btn.textContent = '登录';
+      btn.textContent = this.isRegisterMode ? '注册' : '登录';
       btn.disabled = false;
     }
   },
