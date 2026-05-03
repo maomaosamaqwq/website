@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <!-- Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
   <!-- 页面1：加载页 -->
@@ -79,6 +81,7 @@
         <p class="login-desc">输入账号密码开始聊天</p>
         <input type="text" id="login-username" placeholder="用户名" class="login-input" autocomplete="username">
         <input type="password" id="login-password" placeholder="密码" class="login-input" autocomplete="current-password" style="margin-top:10px;">
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADIYNHzN1vYcbr3x" id="turnstile-widget" style="margin: 12px auto;"></div>
         <button class="login-btn" id="btn-login">登录</button>
         <p class="login-register-link" id="login-register-link">还没有账号？注册</p>
       </div>

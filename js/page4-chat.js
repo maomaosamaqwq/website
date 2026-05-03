@@ -170,10 +170,26 @@ const ChatPage = {
 
     try {
       const endpoint = this.isRegisterMode ? '/register' : '/login';
+
+      // 注册模式下获取 Turnstile token
+      let turnstileToken = null;
+      if (this.isRegisterMode && typeof turnstile !== 'undefined') {
+        turnstileToken = turnstile.getResponse();
+        if (!turnstileToken) {
+          alert('请完成人机验证');
+          btn.textContent = '注册';
+          btn.disabled = false;
+          return;
+        }
+      }
+
+      const body = { username, password };
+      if (turnstileToken) body.cfTurnstileToken = turnstileToken;
+
       const resp = await this.apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify(body)
       });
 
       if (!resp) {
