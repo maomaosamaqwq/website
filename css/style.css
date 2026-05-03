@@ -3,6 +3,264 @@
    ============================ */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700;900&family=Noto+Serif+SC:wght@400;700&display=swap');
 
+/* ============================
+   升级新增样式
+   ============================ */
+
+/* 消息气泡动效 */
+.message {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: msgFadeIn 0.4s ease forwards;
+}
+.message.user { animation-name: msgSlideInRight; }
+.message.assistant { animation-name: msgSlideInLeft; }
+
+@keyframes msgSlideInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes msgSlideInLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Markdown 渲染样式 */
+.message .msg-content h1,
+.message .msg-content h2,
+.message .msg-content h3 {
+  margin: 8px 0 4px;
+  font-weight: 700;
+}
+.message .msg-content h1 { font-size: 1.3em; }
+.message .msg-content h2 { font-size: 1.15em; }
+.message .msg-content h3 { font-size: 1.05em; }
+.message .msg-content p { margin: 4px 0; }
+.message .msg-content ul, .message .msg-content ol {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+.message .msg-content li { margin: 2px 0; }
+.message .msg-content blockquote {
+  border-left: 3px solid var(--orange);
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.02);
+  color: #555;
+}
+.message .msg-content code {
+  background: rgba(0,0,0,0.06);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+.message .msg-content pre {
+  margin: 8px 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.message .msg-content pre code {
+  background: none;
+  padding: 0;
+}
+.message .msg-content table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  width: 100%;
+  font-size: 13px;
+}
+.message .msg-content th, .message .msg-content td {
+  border: 1px solid rgba(0,0,0,0.1);
+  padding: 6px 10px;
+  text-align: left;
+}
+.message .msg-content th {
+  background: rgba(0,0,0,0.04);
+  font-weight: 600;
+}
+
+/* 打字指示器 - 猫咪动画 */
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  position: relative;
+}
+.typing-indicator span {
+  width: 6px;
+  height: 6px;
+  background: var(--orange);
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+.typing-indicator .cat-ear {
+  content: '🐱';
+  margin-right: 6px;
+  font-size: 16px;
+  animation: catTypingBlink 1.4s infinite;
+}
+@keyframes catTypingBlink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.3); }
+}
+
+/* 语音按钮 */
+.btn-voice {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.1);
+  color: #666;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.3s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-voice:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+.btn-voice.listening {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+  animation: pulseRecording 1.2s infinite;
+}
+@keyframes pulseRecording {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+}
+
+/* 导出/导入按钮组 */
+.chat-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 0 24px;
+}
+.chat-actions button {
+  background: transparent;
+  border: 1px solid rgba(0,0,0,0.1);
+  color: #888;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+.chat-actions button:hover {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+/* Token 计数器 */
+.token-counter {
+  font-size: 11px;
+  color: #aaa;
+  text-align: right;
+  padding: 4px 24px;
+  user-select: none;
+}
+.token-counter.warning {
+  color: #f59e0b;
+}
+.token-counter.danger {
+  color: #ef4444;
+}
+
+/* 移动端侧边栏 - 抽屉式 */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.3);
+  z-index: 99;
+}
+.sidebar-overlay.open {
+  display: block;
+}
+
+/* ============================
+   响应式覆盖
+   ============================ */
+@media (max-width: 768px) {
+  .chat-sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 260px;
+    height: 100%;
+    z-index: 100;
+    transition: left 0.3s ease;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+  }
+  .chat-sidebar.open {
+    left: 0;
+  }
+  .sidebar-header h3 { display: block; }
+  .chat-history-list { display: block; }
+
+  .chat-main {
+    width: 100%;
+  }
+
+  .message {
+    max-width: 90%;
+  }
+
+  .intro-content {
+    flex-direction: column;
+  }
+  
+  .intro-left {
+    height: 40vh;
+  }
+  
+  .intro-right {
+    height: 60vh;
+    padding: 32px;
+  }
+  
+  .name-char {
+    font-size: 48px;
+  }
+
+  .intro-title-anim {
+    font-size: 2.8rem;
+  }
+  .intro-subtitle-anim {
+    font-size: 4rem;
+  }
+}
+
+/* 移动端汉堡菜单按钮 */
+.btn-menu-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--orange);
+  padding: 4px;
+  margin-right: 8px;
+}
+@media (max-width: 768px) {
+  .btn-menu-toggle {
+    display: inline-block;
+  }
+}
+
 :root {
   --black: #f8f8f8;
   --dark: #ffffff;

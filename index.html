@@ -9,6 +9,10 @@
   <link href="https://fonts.font.im/css2?family=Kanit:wght@800&family=Noto+Sans+SC:wght@100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/particles.css">
+  <!-- Markdown + 代码高亮 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
   <!-- 页面1：加载页 -->
@@ -65,6 +69,8 @@
   <section id="page-chat" class="page">
     <canvas id="neuron-canvas"></canvas>
     <div class="chat-container">
+      <!-- 移动端遮罩 -->
+      <div class="sidebar-overlay" id="sidebar-overlay"></div>
       <div class="chat-sidebar">
         <div class="sidebar-header">
           <h3>猫猫</h3>
@@ -90,11 +96,18 @@
           </div>
         </div>
         <div class="chat-messages" id="chat-messages" style="display:none;">
+          <div class="chat-actions">
+            <button id="btn-export">📥 导出</button>
+            <button id="btn-import">📤 导入</button>
+          </div>
           <div class="messages-container" id="messages-container">
             <!-- 消息动态生成 -->
           </div>
+          <div class="token-counter" id="token-counter">≈0 / 128k tokens</div>
           <div class="chat-input-area">
+            <button class="btn-menu-toggle" id="btn-menu-toggle">☰</button>
             <textarea id="chat-input" placeholder="输入消息..." rows="1"></textarea>
+            <button class="btn-voice" id="btn-voice">🎤</button>
             <button class="btn-send" id="btn-send">送信</button>
           </div>
         </div>

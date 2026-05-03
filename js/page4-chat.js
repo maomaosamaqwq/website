@@ -1,5 +1,5 @@
 /* ============================
-   page4-chat.js — 聊天界面逻辑
+   page4-chat.js — 聊天界面逻辑（升级版）
    ============================ */
 const ChatPage = {
   canvas: null,
@@ -14,7 +14,6 @@ const ChatPage = {
     this.canvas = document.getElementById('neuron-canvas');
     if (!this.canvas) return;
 
-    // 神经元背景粒子
     this.neuronSystem = new ParticleSystem(this.canvas, {
       count: 80,
       speed: 0.2,
@@ -23,10 +22,8 @@ const ChatPage = {
       connectOpacity: 0.08,
     });
 
-    // 检查是否有已保存的 API key
     this.apiKey = localStorage.getItem('maomao_api_key') || '';
 
-    // 检查是否有当前会话
     const currentConv = localStorage.getItem('maomao_current_conv');
     if (currentConv) {
       try {
@@ -50,24 +47,43 @@ const ChatPage = {
     });
     document.getElementById('btn-new-chat-sm').addEventListener('click', () => this.startNewChat());
 
-    // 自动调整输入框高度
     document.getElementById('chat-input').addEventListener('input', (e) => {
       e.target.style.height = 'auto';
       e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
     });
 
-    // 设置按钮
     document.getElementById('btn-settings').addEventListener('click', () => {
       document.getElementById('api-config').style.display = 'flex';
       document.getElementById('chat-messages').style.display = 'none';
     });
 
-    // 如果有 API key，自动进入聊天
+    // 语音按钮
+    if (document.getElementById('btn-voice')) {
+      document.getElementById('btn-voice').addEventListener('click', () => this.toggleVoiceInput());
+    }
+
+    // 导出
+    document.getElementById('btn-export').addEventListener('click', () => this.exportChat());
+    document.getElementById('btn-import').addEventListener('click', () => this.importChat());
+
+    // 移动端菜单
+    document.getElementById('btn-menu-toggle').addEventListener('click', () => this.toggleSidebar());
+    document.getElementById('sidebar-overlay').addEventListener('click', () => this.toggleSidebar());
+
     if (this.apiKey) {
       this.enterChat();
     }
   },
 
+  /* ========== 侧边栏 ========== */
+  toggleSidebar() {
+    const sidebar = document.querySelector('.chat-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  },
+
+  /* ========== API Key ========== */
   confirmKey() {
     const input = document.getElementById('api-key-input');
     const key = input.value.trim();
@@ -90,6 +106,7 @@ const ChatPage = {
     this.renderMessages();
   },
 
+  /* ========== 消息管理 ========== */
   loadMessages(convId) {
     try {
       const saved = localStorage.getItem(`maomao_messages_${convId}`);
@@ -105,6 +122,22 @@ const ChatPage = {
     }
   },
 
+  /* ========== Markdown 渲染 ========== */
+  renderMarkdown(text) {
+    if (typeof marked === 'undefined') {
+      return `<p>${this.escapeHtml(text)}</p>`;
+    }
+    // 使用 marked 渲染
+    let html = marked.parse(text, { breaks: true, gfm: true });
+    // 代码高亮
+    if (typeof hljs !== 'undefined') {
+      html = html.replace(/<pre><code class="language-(\w+)">/g, (match, lang) => {
+        return `<pre><code class="language-${lang}">`;
+      });
+    }
+    return html;
+  },
+
   renderMessages() {
     const container = document.getElementById('messages-container');
     container.innerHTML = '';
@@ -112,13 +145,56 @@ const ChatPage = {
     this.messages.forEach(msg => {
       const div = document.createElement('div');
       div.className = `message ${msg.role}`;
-      div.innerHTML = `<div class="msg-content">${this.escapeHtml(msg.content)}</div>`;
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'msg-content';
+      
+      if (msg.role === 'assistant') {
+        // 助手消息用 Markdown
+        contentDiv.innerHTML = this.renderMarkdown(msg.content);
+        // 高亮代码块
+        if (typeof hljs !== 'undefined') {
+          contentDiv.querySelectorAll('pre code').forEach(block => {
+            hljs.highlightElement(block);
+          });
+        }
+      } else {
+        // 用户消息简单转义
+        contentDiv.textContent = msg.content;
+      }
+      
+      div.appendChild(contentDiv);
       container.appendChild(div);
     });
 
     container.scrollTop = container.scrollHeight;
+    this.updateTokenCounter();
   },
 
+  /* ========== Token 计数器 ========== */
+  updateTokenCounter() {
+    const counter = document.getElementById('token-counter');
+    if (!counter) return;
+    
+    // 粗略估算：中文 ≈ 1.5 token/字，英文 ≈ 0.25 token/字符
+    let totalChars = 0;
+    this.messages.forEach(m => {
+      const chineseChars = (m.content.match(/[\u4e00-\u9fff]/g) || []).length;
+      const otherChars = m.content.length - chineseChars;
+      totalChars += Math.ceil(chineseChars * 1.5 + otherChars * 0.25);
+    });
+    
+    const maxTokens = 128000; // DeepSeek 上下文上限
+    const usedTokens = totalChars;
+    const pct = (usedTokens / maxTokens) * 100;
+    
+    counter.textContent = `≈${usedTokens.toLocaleString()} / ${(maxTokens/1000).toFixed(0)}k tokens`;
+    counter.className = 'token-counter';
+    if (pct > 80) counter.classList.add('danger');
+    else if (pct > 50) counter.classList.add('warning');
+  },
+
+  /* ========== 对话历史列表 ========== */
   renderHistoryList() {
     const list = document.getElementById('chat-history-list');
     list.innerHTML = '';
@@ -138,9 +214,18 @@ const ChatPage = {
         this.loadMessages(conv.id);
         this.renderMessages();
         this.renderHistoryList();
+        // 移动端自动收起侧边栏
+        this.closeSidebar();
       });
       list.appendChild(item);
     });
+  },
+
+  closeSidebar() {
+    const sidebar = document.querySelector('.chat-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
   },
 
   startNewChat() {
@@ -150,8 +235,10 @@ const ChatPage = {
     document.getElementById('api-config').style.display = 'flex';
     document.getElementById('chat-messages').style.display = 'none';
     document.getElementById('api-key-input').value = this.apiKey || '';
+    this.closeSidebar();
   },
 
+  /* ========== 发送消息 ========== */
   async sendMessage() {
     if (this.isStreaming) return;
 
@@ -165,7 +252,6 @@ const ChatPage = {
       return;
     }
 
-    // 如果没有当前会话 ID，创建一个新的
     if (!this.currentConvId) {
       this.currentConvId = 'conv_' + Date.now();
       
@@ -185,18 +271,15 @@ const ChatPage = {
       this.renderHistoryList();
     }
 
-    // 添加用户消息
     this.messages.push({ role: 'user', content });
     this.renderMessages();
     input.value = '';
     input.style.height = 'auto';
 
-    // 显示打字指示器
     this.showTyping();
     this.isStreaming = true;
 
     try {
-      // 构建消息历史
       const apiMessages = this.messages.map(m => ({
         role: m.role,
         content: m.content
@@ -219,14 +302,13 @@ const ChatPage = {
         throw new Error(`API 错误: ${response.status}`);
       }
 
-      // 流式读取
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = '';
 
       this.hideTyping();
 
-      // 创建助手消息容器
+      // 创建助手消息容器（用 Markdown 渲染）
       const container = document.getElementById('messages-container');
       const msgDiv = document.createElement('div');
       msgDiv.className = 'message assistant';
@@ -234,6 +316,8 @@ const ChatPage = {
       contentDiv.className = 'msg-content';
       msgDiv.appendChild(contentDiv);
       container.appendChild(msgDiv);
+
+      let fullRendered = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -250,18 +334,25 @@ const ChatPage = {
             const parsed = JSON.parse(data);
             const delta = parsed.choices[0]?.delta?.content || '';
             assistantContent += delta;
-            contentDiv.textContent = this.escapeHtml(assistantContent);
+            
+            // 实时渲染 Markdown
+            contentDiv.innerHTML = this.renderMarkdown(assistantContent);
+            // 高亮代码块
+            if (typeof hljs !== 'undefined') {
+              contentDiv.querySelectorAll('pre code').forEach(block => {
+                hljs.highlightElement(block);
+              });
+            }
+            
             container.scrollTop = container.scrollHeight;
           } catch {}
         }
       }
 
-      // 保存消息
       this.messages.push({ role: 'assistant', content: assistantContent });
       this.saveMessages();
-
-      // 更新对话标题（如果是第一条）
       this.updateConversationTitle();
+      this.updateTokenCounter();
 
     } catch (err) {
       this.hideTyping();
@@ -275,6 +366,7 @@ const ChatPage = {
     this.isStreaming = false;
   },
 
+  /* ========== 打字指示器（猫咪版） ========== */
   showTyping() {
     const container = document.getElementById('messages-container');
     const div = document.createElement('div');
@@ -282,6 +374,7 @@ const ChatPage = {
     div.id = 'typing-indicator';
     div.innerHTML = `
       <div class="msg-content typing-indicator">
+        <span class="cat-ear">🐱</span>
         <span></span><span></span><span></span>
       </div>
     `;
@@ -295,7 +388,6 @@ const ChatPage = {
   },
 
   updateConversationTitle() {
-    // 用第一条消息更新对话标题
     if (this.messages.length === 2 && this.messages[0].role === 'user') {
       let conversations = JSON.parse(localStorage.getItem('maomao_conversations') || '[]');
       const idx = conversations.findIndex(c => c.id === this.currentConvId);
@@ -308,12 +400,155 @@ const ChatPage = {
     }
   },
 
+  /* ========== 语音输入 ========== */
+  isListening: false,
+  recognition: null,
+
+  toggleVoiceInput() {
+    if (this.isListening) {
+      this.stopVoiceInput();
+      return;
+    }
+
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert('您的浏览器不支持语音输入，请使用 Chrome 或 Edge。');
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    this.recognition = new SpeechRecognition();
+    this.recognition.lang = 'zh-CN';
+    this.recognition.continuous = false;
+    this.recognition.interimResults = false;
+
+    const btn = document.getElementById('btn-voice');
+    btn.classList.add('listening');
+    btn.textContent = '⏺';
+    this.isListening = true;
+
+    this.recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const input = document.getElementById('chat-input');
+      input.value = (input.value + transcript).trim();
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+      this.stopVoiceInput();
+      // 自动发送（可选，加一两秒延迟让用户确认）
+      // setTimeout(() => this.sendMessage(), 500);
+    };
+
+    this.recognition.onerror = () => {
+      this.stopVoiceInput();
+    };
+
+    this.recognition.start();
+  },
+
+  stopVoiceInput() {
+    if (this.recognition) {
+      try { this.recognition.stop(); } catch {}
+      this.recognition = null;
+    }
+    const btn = document.getElementById('btn-voice');
+    if (btn) {
+      btn.classList.remove('listening');
+      btn.textContent = '🎤';
+    }
+    this.isListening = false;
+  },
+
+  /* ========== 导出 ========== */
+  exportChat() {
+    if (this.messages.length === 0) {
+      alert('当前对话为空，没有可导出的内容。');
+      return;
+    }
+
+    // 生成 Markdown 文件
+    let md = `# 猫猫 AI 对话记录\n\n`;
+    md += `导出时间: ${new Date().toLocaleString()}\n`;
+    md += `对话 ID: ${this.currentConvId || '未保存'}\n\n---\n\n`;
+
+    this.messages.forEach(msg => {
+      const role = msg.role === 'user' ? '**你**' : '**猫猫**';
+      md += `### ${role}\n\n${msg.content}\n\n---\n\n`;
+    });
+
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `猫猫对话_${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  /* ========== 导入 ========== */
+  importChat() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,.md,.txt';
+
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          // 尝试解析 JSON 格式（直接消息数组）
+          const data = JSON.parse(evt.target.result);
+          if (Array.isArray(data) && data.length > 0 && data[0].role && data[0].content) {
+            this.importMessages(data);
+            return;
+          }
+          alert('无法识别的文件格式。支持的格式：导出的 .json 或 .md 文件。');
+        } catch {
+          alert('无法解析文件，请确保是有效的聊天导出文件。');
+        }
+      };
+
+      // 尝试读 JSON
+      reader.readAsText(file);
+    });
+
+    input.click();
+  },
+
+  importMessages(messages) {
+    // 创建新对话
+    this.currentConvId = 'conv_' + Date.now();
+    this.messages = messages;
+    this.saveMessages();
+
+    // 添加到对话列表
+    let conversations = [];
+    try {
+      const saved = localStorage.getItem('maomao_conversations');
+      conversations = saved ? JSON.parse(saved) : [];
+    } catch {}
+    
+    conversations.unshift({
+      id: this.currentConvId,
+      title: `导入对话 ${new Date().toLocaleDateString()}`,
+      date: new Date().toLocaleDateString(),
+      preview: messages[0]?.content?.slice(0, 50) || ''
+    });
+    localStorage.setItem('maomao_conversations', JSON.stringify(conversations));
+
+    this.renderHistoryList();
+    this.renderMessages();
+    this.closeSidebar();
+  },
+
+  /* ========== 工具函数 ========== */
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   },
 
+  /* ========== 生命周期 ========== */
   start() {
     this.isActive = true;
     if (this.neuronSystem) {
