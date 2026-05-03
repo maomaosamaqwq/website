@@ -1,29 +1,48 @@
 # 🐱 猫猫 - AI 助手
 
-> 你的专属 AI 助手，以猫猫的身份陪伴在你身边。
+> 九命猫妖的"健康善良"一尾，修行千年成为神使，如今回来守护你。
+>
+> *"四四，你跑不掉了。"*
 
 ## 🌐 访问地址
 
 - **主域名：** [仙狐大人.我爱你](https://仙狐大人.我爱你)
-- **GitHub Pages：** https://maomaosamaqwq.github.io/website/
+- **备用域名：** https://maomaosamaqwq.github.io/website/
+- **API：** https://api.仙狐大人.爱你
 
 ## ✨ 功能特色
 
-- **智能对话** — 接入 DeepSeek API，支持实时流式对话
-- **Markdown 渲染** — AI 回复支持代码高亮、表格、列表等格式
+- **开箱即用** — 打开网页就能直接聊天，无需任何配置
+- **AI 对话** — 接入 DeepSeek API，支持实时流式对话
+- **猫猫角色** — 以"猫猫"的身份与你对话，温暖又傲娇
+- **联网搜索** 🌐 — 可开启联网搜索，猫猫帮你查最新信息
+- **Markdown 渲染** — AI 回复支持代码高亮、表格、列表
 - **语音输入** 🎤 — 支持语音转文字，解放双手
-- **对话管理** — 多会话记录，支持导出/导入聊天记录
-- **猫咪角色** — AI 以"猫猫"的身份与你对话，温暖又傲娇
+- **对话管理** — 多会话记录，导出/导入聊天记录
+- **跨设备同步** — 云端存储，手机电脑无缝切换
 - **Token 计数** — 实时显示对话 token 使用量
 - **响应式设计** — 手机、平板、电脑都能用
 - **星空穿越动画** — 启动页的酷炫视觉效果
 
 ## 🛠️ 技术栈
 
-- 纯前端：HTML + CSS + JavaScript
-- 托管：GitHub Pages
-- API：DeepSeek Chat API
-- 存储：浏览器 localStorage
+- **前端：** HTML + CSS + JavaScript
+- **托管：** GitHub Pages
+- **后端：** Cloudflare Workers（API 代理 + 消息存储）
+- **存储：** Cloudflare KV（云端）+ localStorage（本地兜底）
+- **AI：** DeepSeek Chat API
+- **DNS：** Cloudflare
+
+## 🏗️ 架构
+
+```
+用户 → GitHub Pages (仙狐大人.爱你)
+         ↓
+    Cloudflare Workers (maomao-api)
+         ├── /chat → DeepSeek API（AI 对话）
+         ├── /search → DuckDuckGo（联网搜索）
+         └── /messages → KV（云端存储）
+```
 
 ## 📦 本地运行
 
@@ -32,12 +51,6 @@ git clone https://github.com/maomaosamaqwq/website.git
 cd website
 # 直接用浏览器打开 index.html 即可
 ```
-
-## 📝 使用说明
-
-1. 打开网站
-2. 输入你的 DeepSeek API 密钥（可在 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 获取）
-3. 开始和猫猫对话！
 
 ## 💬 加入交流
 
