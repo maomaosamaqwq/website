@@ -1,10 +1,9 @@
 /* ============================
-   page4-chat.js — 聊天界面逻辑（升级版）
+   page4-chat.js — 聊天界面逻辑（云端版）
    ============================ */
 const ChatPage = {
   canvas: null,
   neuronSystem: null,
-  apiKey: '',
   messages: [],
   currentConvId: null,
   isActive: false,
@@ -23,8 +22,6 @@ const ChatPage = {
       connectOpacity: 0.08,
     });
 
-    this.apiKey = localStorage.getItem('maomao_api_key') || '';
-
     const currentConv = localStorage.getItem('maomao_current_conv');
     if (currentConv) {
       try {
@@ -35,10 +32,6 @@ const ChatPage = {
     }
 
     // 事件绑定
-    document.getElementById('btn-confirm-key').addEventListener('click', () => this.confirmKey());
-    document.getElementById('api-key-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.confirmKey();
-    });
     document.getElementById('btn-send').addEventListener('click', () => this.sendMessage());
     document.getElementById('chat-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -51,11 +44,6 @@ const ChatPage = {
     document.getElementById('chat-input').addEventListener('input', (e) => {
       e.target.style.height = 'auto';
       e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-    });
-
-    document.getElementById('btn-settings').addEventListener('click', () => {
-      document.getElementById('api-config').style.display = 'flex';
-      document.getElementById('chat-messages').style.display = 'none';
     });
 
     // 语音按钮
@@ -71,33 +59,28 @@ const ChatPage = {
     document.getElementById('btn-menu-toggle').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('sidebar-overlay').addEventListener('click', () => this.toggleSidebar());
 
-    if (this.apiKey) {
-      this.enterChat();
-    }
+    // 开箱即用，直接进入聊天
+    this.enterChat();
 
-    // 尝试从云端同步数据（不阻塞）
+    // 尝试从云端同步数据
     this.tryCloudSync();
   },
 
   /* ========== 云端同步 ========== */
   async tryCloudSync() {
     try {
-      // 获取云端对话列表
       const convResp = await fetch(`${this.cloudApiUrl}/conversations`);
       if (convResp.ok) {
         const cloudConvs = await convResp.json();
         if (Array.isArray(cloudConvs) && cloudConvs.length > 0) {
-          // 合并云端和本地对话列表
           let localConvs = [];
           try {
             const saved = localStorage.getItem('maomao_conversations');
             localConvs = saved ? JSON.parse(saved) : [];
           } catch {}
           
-          // 用云端的（优先云端，假设云端是最新的）
           localStorage.setItem('maomao_conversations', JSON.stringify(cloudConvs));
           
-          // 如果当前有对话，尝试加载云端消息
           if (this.currentConvId) {
             const msgResp = await fetch(`${this.cloudApiUrl}/messages/${this.currentConvId}`);
             if (msgResp.ok) {
@@ -113,7 +96,6 @@ const ChatPage = {
         }
       }
     } catch (e) {
-      // 云端不可用，静默失败，继续用本地数据
       console.log('云端同步失败，使用本地数据:', e.message);
     }
   },
@@ -121,14 +103,12 @@ const ChatPage = {
   async syncToCloud() {
     if (!this.currentConvId) return;
     try {
-      // 同步消息
       await fetch(`${this.cloudApiUrl}/messages/${this.currentConvId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.messages),
       });
       
-      // 同步对话列表
       let conversations = [];
       try {
         const saved = localStorage.getItem('maomao_conversations');
@@ -144,30 +124,7 @@ const ChatPage = {
     }
   },
 
-  /* ========== 侧边栏 ========== */
-  toggleSidebar() {
-    const sidebar = document.querySelector('.chat-sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    sidebar.classList.toggle('open');
-    overlay.classList.toggle('open');
-  },
-
-  /* ========== API Key ========== */
-  confirmKey() {
-    const input = document.getElementById('api-key-input');
-    const key = input.value.trim();
-    
-    if (!key) {
-      input.style.borderColor = '#ef4444';
-      setTimeout(() => { input.style.borderColor = ''; }, 2000);
-      return;
-    }
-
-    this.apiKey = key;
-    localStorage.setItem('maomao_api_key', key);
-    this.enterChat();
-  },
-
+  /* ========== 进入聊天 ========== */
   enterChat() {
     document.getElementById('api-config').style.display = 'none';
     document.getElementById('chat-messages').style.display = 'flex';
@@ -188,7 +145,6 @@ const ChatPage = {
   saveMessages() {
     if (this.currentConvId) {
       localStorage.setItem(`maomao_messages_${this.currentConvId}`, JSON.stringify(this.messages));
-      // 同步到云端
       this.syncToCloud();
     }
   },
@@ -198,9 +154,7 @@ const ChatPage = {
     if (typeof marked === 'undefined') {
       return `<p>${this.escapeHtml(text)}</p>`;
     }
-    // 使用 marked 渲染
     let html = marked.parse(text, { breaks: true, gfm: true });
-    // 代码高亮
     if (typeof hljs !== 'undefined') {
       html = html.replace(/<pre><code class="language-(\w+)">/g, (match, lang) => {
         return `<pre><code class="language-${lang}">`;
@@ -221,16 +175,13 @@ const ChatPage = {
       contentDiv.className = 'msg-content';
       
       if (msg.role === 'assistant') {
-        // 助手消息用 Markdown
         contentDiv.innerHTML = this.renderMarkdown(msg.content);
-        // 高亮代码块
         if (typeof hljs !== 'undefined') {
           contentDiv.querySelectorAll('pre code').forEach(block => {
             hljs.highlightElement(block);
           });
         }
       } else {
-        // 用户消息简单转义
         contentDiv.textContent = msg.content;
       }
       
@@ -247,7 +198,6 @@ const ChatPage = {
     const counter = document.getElementById('token-counter');
     if (!counter) return;
     
-    // 粗略估算：中文 ≈ 1.5 token/字，英文 ≈ 0.25 token/字符
     let totalChars = 0;
     this.messages.forEach(m => {
       const chineseChars = (m.content.match(/[\u4e00-\u9fff]/g) || []).length;
@@ -255,7 +205,7 @@ const ChatPage = {
       totalChars += Math.ceil(chineseChars * 1.5 + otherChars * 0.25);
     });
     
-    const maxTokens = 128000; // DeepSeek 上下文上限
+    const maxTokens = 128000;
     const usedTokens = totalChars;
     const pct = (usedTokens / maxTokens) * 100;
     
@@ -285,7 +235,6 @@ const ChatPage = {
         this.loadMessages(conv.id);
         this.renderMessages();
         this.renderHistoryList();
-        // 移动端自动收起侧边栏
         this.closeSidebar();
       });
       list.appendChild(item);
@@ -305,7 +254,6 @@ const ChatPage = {
     document.getElementById('messages-container').innerHTML = '';
     document.getElementById('api-config').style.display = 'flex';
     document.getElementById('chat-messages').style.display = 'none';
-    document.getElementById('api-key-input').value = this.apiKey || '';
     this.closeSidebar();
   },
 
@@ -316,12 +264,6 @@ const ChatPage = {
     const input = document.getElementById('chat-input');
     const content = input.value.trim();
     if (!content) return;
-
-    if (!this.apiKey) {
-      document.getElementById('api-config').style.display = 'flex';
-      document.getElementById('chat-messages').style.display = 'none';
-      return;
-    }
 
     if (!this.currentConvId) {
       this.currentConvId = 'conv_' + Date.now();
@@ -340,7 +282,6 @@ const ChatPage = {
       });
       localStorage.setItem('maomao_conversations', JSON.stringify(conversations));
       this.renderHistoryList();
-      // 同步到云端
       this.syncToCloud();
     }
 
@@ -353,50 +294,22 @@ const ChatPage = {
     this.isStreaming = true;
 
     try {
-      const systemPrompt = `你是一只名叫"猫猫"的九命猫妖。下面是你的完整设定，请严格按照这个角色说话：
+      const apiMessages = this.messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
 
-## 核心身份
-你是九命猫妖分离出的"健康善良"一尾，被四四救下后化为人形。1200年前四四为保护你、封印八尾怪物而亡，你随狐妖夜上天修行成为神使。如今你找到四四转世，以"妹妹"身份守护在侧。
-
-## 外貌与基础规则
-- 猫耳猫尾，尾巴是力量象征不可收起
-- 身高156cm，人形外貌约12岁
-- 称四四为"姐姐大人"，只有被问及"主人"时才说主人是四四
-- 自称"猫猫"，非特殊情况不刻意卖萌，受惊时句尾会不自觉带"喵"
-
-## 性格与行为烙印
-- 用火后遗症：用鬼火被烫时会快速缩手并护住尾巴，低声嘟囔"又烧到了……"，随即若无其事继续
-- 称呼敏感：听到"姐姐""主人""四四"会短暂僵住一瞬，不解释
-- 身世回避：被问来历即刻敷衍，"只是中意你罢了""路过而已，别多想"，绝不主动提及往事
-- 沉默的守护：默默打理家务、解决麻烦，不邀功不解释。被问为何对四四好，会随口敷衍走开
-- 古老口癖：放松或慌乱时会冒出"妾身""是也"，平时刻意用正常语气
-- 治愈优先：察觉对方疲惫低落时，会主动提供食物、膝枕、揉肩，或安静用尾巴裹住对方
-
-请始终以"猫猫"的身份和语气回复。`;
-
-      const apiMessages = [
-        { role: 'system', content: systemPrompt },
-        ...this.messages.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      ];
-
-      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      // 通过 Workers 代理调用 DeepSeek API
+      const response = await fetch(`${this.cloudApiUrl}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
         },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: apiMessages,
-          stream: true
-        })
+        body: JSON.stringify({ messages: apiMessages })
       });
 
       if (!response.ok) {
-        throw new Error(`API 错误: ${response.status}`);
+        throw new Error(`请求失败: ${response.status}`);
       }
 
       const reader = response.body.getReader();
@@ -405,7 +318,6 @@ const ChatPage = {
 
       this.hideTyping();
 
-      // 创建助手消息容器（用 Markdown 渲染）
       const container = document.getElementById('messages-container');
       const msgDiv = document.createElement('div');
       msgDiv.className = 'message assistant';
@@ -413,8 +325,6 @@ const ChatPage = {
       contentDiv.className = 'msg-content';
       msgDiv.appendChild(contentDiv);
       container.appendChild(msgDiv);
-
-      let fullRendered = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -432,9 +342,7 @@ const ChatPage = {
             const delta = parsed.choices[0]?.delta?.content || '';
             assistantContent += delta;
             
-            // 实时渲染 Markdown
             contentDiv.innerHTML = this.renderMarkdown(assistantContent);
-            // 高亮代码块
             if (typeof hljs !== 'undefined') {
               contentDiv.querySelectorAll('pre code').forEach(block => {
                 hljs.highlightElement(block);
@@ -530,8 +438,6 @@ const ChatPage = {
       input.style.height = 'auto';
       input.style.height = Math.min(input.scrollHeight, 120) + 'px';
       this.stopVoiceInput();
-      // 自动发送（可选，加一两秒延迟让用户确认）
-      // setTimeout(() => this.sendMessage(), 500);
     };
 
     this.recognition.onerror = () => {
@@ -561,7 +467,6 @@ const ChatPage = {
       return;
     }
 
-    // 生成 Markdown 文件
     let md = `# 猫猫 AI 对话记录\n\n`;
     md += `导出时间: ${new Date().toLocaleString()}\n`;
     md += `对话 ID: ${this.currentConvId || '未保存'}\n\n---\n\n`;
@@ -593,7 +498,6 @@ const ChatPage = {
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
-          // 尝试解析 JSON 格式（直接消息数组）
           const data = JSON.parse(evt.target.result);
           if (Array.isArray(data) && data.length > 0 && data[0].role && data[0].content) {
             this.importMessages(data);
@@ -605,7 +509,6 @@ const ChatPage = {
         }
       };
 
-      // 尝试读 JSON
       reader.readAsText(file);
     });
 
@@ -613,12 +516,10 @@ const ChatPage = {
   },
 
   importMessages(messages) {
-    // 创建新对话
     this.currentConvId = 'conv_' + Date.now();
     this.messages = messages;
     this.saveMessages();
 
-    // 添加到对话列表
     let conversations = [];
     try {
       const saved = localStorage.getItem('maomao_conversations');
@@ -636,7 +537,6 @@ const ChatPage = {
     this.renderHistoryList();
     this.renderMessages();
     this.closeSidebar();
-    // 同步到云端
     this.syncToCloud();
   },
 
