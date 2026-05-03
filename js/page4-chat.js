@@ -615,9 +615,7 @@ const ChatPage = {
             // 兼容两种格式：标准 OpenAI 流式格式 和 Worker 自定义 { content } 格式
             const delta = parsed.choices?.[0]?.delta?.content || parsed.content || '';
             if (!delta) continue;
-            // 处理转义字符
-            const decoded = delta.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"');
-            assistantContent += decoded;
+            assistantContent += delta;
 
             contentDiv.innerHTML = this.renderMarkdown(assistantContent);
             container.scrollTop = container.scrollHeight;
