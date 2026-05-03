@@ -392,7 +392,6 @@ const ChatPage = {
     div.id = 'typing-indicator';
     div.innerHTML = `
       <div class="msg-content typing-indicator">
-        <span class="cat-ear">🐱</span>
         <span></span><span></span><span></span>
       </div>
     `;
