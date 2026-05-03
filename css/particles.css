@@ -1,0 +1,35 @@
+/* ============================
+   particles.css — 粒子相关样式
+   ============================ */
+#particle-canvas, #intro-canvas, #neuron-canvas, #server-canvas {
+  display: block;
+}
+
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 粒子悬浮提示 */
+.particle-tooltip {
+  position: fixed;
+  pointer-events: none;
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 6px 14px;
+  background: rgba(248, 248, 248, 0.95);
+  border: 1px solid #444444;
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 100;
+  letter-spacing: 0.05em;
+}
+
+.particle-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

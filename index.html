@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>猫猫 - AI 助手</title>
+  <link rel="preconnect" href="https://fonts.font.im">
+  <link rel="preconnect" href="https://fonts.gstatic.font.im" crossorigin>
+  <link href="https://fonts.font.im/css2?family=Kanit:wght@800&family=Noto+Sans+SC:wght@100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/particles.css">
+</head>
+<body>
+  <!-- 页面1：加载页 -->
+  <section id="page-loader" class="page active">
+    <div class="loader-left">
+      <div class="progress-container">
+        <div class="progress-track">
+          <div class="progress-bar"></div>
+        </div>
+        <div class="progress-label">0%</div>
+      </div>
+    </div>
+    <div class="loader-right">
+      <div class="ai-intro">
+        <div class="intro-icon">🐱</div>
+        <h1 class="intro-title">猫猫</h1>
+        <p class="intro-desc">あなたのAIアシスタント</p>
+        <p class="intro-sub">住在电脑里的智能助手</p>
+        <div class="intro-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页面2：介绍页（星空穿越版） -->
+  <section id="page-intro" class="page">
+    <div id="intro-ui-layer">
+      <div class="intro-top-caption">YOUR AI ASSISTANT</div>
+      <h1 class="intro-title-anim">「猫猫」</h1>
+      <div class="intro-bottom-caption">あなたのそばに、いつでも。</div>
+      <p class="intro-subtitle-anim">MAOMAO</p>
+      <button class="btn-start" id="btn-start">開始する →</button>
+    </div>
+    <canvas id="warp-canvas"></canvas>
+  </section>
+
+  <!-- 页面3：对话选择页 -->
+  <section id="page-particles" class="page">
+    <canvas id="particle-canvas"></canvas>
+    <div class="particles-ui">
+      <div id="particle-tooltip" class="particle-tooltip"></div>
+      <div class="particles-header">
+        <h2>会話履歴</h2>
+        <span class="header-sub">— 对话历史 —</span>
+      </div>
+      <button class="btn-new-chat" id="btn-new-chat">
+        <span class="quote-mark">《</span> 開始する <span class="quote-mark">》</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 页面4：对话/配置页 -->
+  <section id="page-chat" class="page">
+    <canvas id="neuron-canvas"></canvas>
+    <div class="chat-container">
+      <div class="chat-sidebar">
+        <div class="sidebar-header">
+          <h3>猫猫</h3>
+          <button class="btn-new-chat-sm" id="btn-new-chat-sm">＋</button>
+        </div>
+        <div class="chat-history-list" id="chat-history-list">
+          <!-- 历史会话列表 -->
+        </div>
+        <div class="sidebar-footer">
+          <button class="btn-settings" id="btn-settings">⚙️</button>
+        </div>
+      </div>
+      <div class="chat-main">
+        <div class="api-config" id="api-config">
+          <div class="config-box">
+            <h3>API 密钥配置</h3>
+            <p class="config-desc">请输入您的 DeepSeek API 密钥以开始对话</p>
+            <div class="input-group">
+              <input type="password" id="api-key-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+              <button class="btn-confirm" id="btn-confirm-key">確認</button>
+            </div>
+            <a href="https://platform.deepseek.com/api_keys" target="_blank" class="config-link">获取 API 密钥 →</a>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages" style="display:none;">
+          <div class="messages-container" id="messages-container">
+            <!-- 消息动态生成 -->
+          </div>
+          <div class="chat-input-area">
+            <textarea id="chat-input" placeholder="输入消息..." rows="1"></textarea>
+            <button class="btn-send" id="btn-send">送信</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <script src="js/particles.js"></script>
+  <script src="js/page1-loader.js"></script>
+  <script src="js/page2-intro.js"></script>
+  <script src="js/page3-particles.js"></script>
+  <script src="js/page4-chat.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
