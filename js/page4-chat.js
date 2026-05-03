@@ -268,6 +268,11 @@ const ChatPage = {
         }
         // 其他状态码（400, 404, 500 等）也返回，不要在 fallback 间循环
         return resp;
+      } catch {
+        // fallback 到下一个域名
+      }
+    }
+    return null;
   },
 
   /** 当收到 401 时，清除 token 并跳回登录页 */
