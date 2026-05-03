@@ -42,11 +42,14 @@ const ChatPage = {
       if (e.key === 'Enter') document.getElementById('login-password').focus();
     });
 
-    // 注册链接
+    // 登录/注册切换
     const registerLink = document.getElementById('login-register-link');
     if (registerLink) {
       registerLink.addEventListener('click', () => this.toggleRegister());
     }
+
+    // 登录按钮也支持切换模式——点登录就是登录，点注册就是注册，不变了
+    // 但在注册失败切换到登录时重置 Turnstile
 
     // 如果有 token，先验证有效性再决定进聊天还是显示登录页
     if (this.token) {
@@ -165,19 +168,22 @@ const ChatPage = {
     }
 
     const btn = document.getElementById('btn-login');
-    btn.textContent = this.isRegisterMode ? '注册中...' : '登录中...';
+    btn.textContent = this.isRegisterMode ? '注册' : '登录';
     btn.disabled = true;
 
     try {
-      const endpoint = this.isRegisterMode ? '/register' : '/login';
+      // 自动判断：先试登录
+      let endpoint = '/login';
 
       // 注册模式下获取 Turnstile token
       let turnstileToken = null;
-      if (this.isRegisterMode && typeof turnstile !== 'undefined') {
+      if (typeof turnstile !== 'undefined') {
         turnstileToken = turnstile.getResponse();
         if (!turnstileToken) {
+          // 尝试重新渲染 Turnstile
+          turnstile.reset();
           alert('请完成人机验证');
-          btn.textContent = '注册';
+          btn.textContent = this.isRegisterMode ? '注册' : '登录';
           btn.disabled = false;
           return;
         }
@@ -186,36 +192,59 @@ const ChatPage = {
       const body = { username, password };
       if (turnstileToken) body.cfTurnstileToken = turnstileToken;
 
-      const resp = await this.apiFetch(endpoint, {
+      let resp = await this.apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
-      if (!resp) {
-        alert('无法连接到服务器，请稍后重试');
-        return;
-      }
-
-      const data = await resp.json();
-
-      if (data.success) {
-        this.token = data.token;
-        localStorage.setItem('maomao_token', this.token);
-        localStorage.setItem('maomao_username', username);
-        
-        this.loginPage.style.display = 'none';
-        this.chatPage.style.display = 'flex';
-        
-        // 登录成功，同步数据
-        setTimeout(() => this.tryCloudSync(), 200);
+      // 如果登录返回"用户不存在"，自动切换到注册
+      if (resp) {
+        const data = await resp.json();
+        if (!resp.ok && data.error === '用户不存在' && !this.isRegisterMode) {
+          // 自动切成注册
+          this.isRegisterMode = true;
+          endpoint = '/register';
+          resp = await this.apiFetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const regData = resp ? await resp.json() : null;
+          if (regData && regData.success) {
+            this.token = regData.token;
+            localStorage.setItem('maomao_token', this.token);
+            localStorage.setItem('maomao_username', username);
+            this.loginPage.style.display = 'none';
+            this.chatPage.style.display = 'flex';
+            setTimeout(() => this.tryCloudSync(), 200);
+            return;
+          } else {
+            alert(regData?.error || '注册失败');
+            turnstile.reset();
+            btn.textContent = '登录 / 注册';
+            btn.disabled = false;
+            return;
+          }
+        } else if (data.success) {
+          this.token = data.token;
+          localStorage.setItem('maomao_token', this.token);
+          localStorage.setItem('maomao_username', username);
+          this.loginPage.style.display = 'none';
+          this.chatPage.style.display = 'flex';
+          setTimeout(() => this.tryCloudSync(), 200);
+          return;
+        } else {
+          alert(data.error || '操作失败');
+          turnstile.reset();
+        }
       } else {
-        alert(data.error || '操作失败');
+        alert('无法连接到服务器，请稍后重试');
       }
     } catch (e) {
       alert('操作失败: ' + e.message);
     } finally {
-      btn.textContent = this.isRegisterMode ? '注册' : '登录';
+      btn.textContent = '登录 / 注册';
       btn.disabled = false;
     }
   },
