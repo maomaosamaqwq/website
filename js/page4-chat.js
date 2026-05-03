@@ -10,8 +10,8 @@ const ChatPage = {
   isStreaming: false,
   useSearch: false,
   token: '',
-  cloudApiUrl: 'https://api.仙狐大人.我爱你',
-  cloudApiUrlFallback: 'https://maomao-api.b35a90441d9dea81207b863b34b6516a.workers.dev',
+  cloudApiUrl: 'https://maomao-api.b35a90441d9dea81207b863b34b6516a.workers.dev',
+  cloudApiUrlFallback: 'https://api.仙狐大人.我爱你',
 
   /* ---- getter 统一放前面，只定义一次 ---- */
   get loginPage() { return document.getElementById('login-page'); },
