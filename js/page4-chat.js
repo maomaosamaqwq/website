@@ -264,12 +264,10 @@ const ChatPage = {
         if (resp.ok) return resp;
         if (resp.status === 401) {
           console.warn('Token 无效，需要重新登录');
-          // 标记状态，由调用方决定是否跳转
           return resp;
         }
-      } catch {}
-    }
-    return null;
+        // 其他状态码（400, 404, 500 等）也返回，不要在 fallback 间循环
+        return resp;
   },
 
   /** 当收到 401 时，清除 token 并跳回登录页 */
