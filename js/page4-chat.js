@@ -554,7 +554,8 @@ const ChatPage = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: apiMessages,
+          message: content,
+          conversationId: this.currentConvId,
           useSearch: this.useSearch
         })
       });
