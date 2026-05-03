@@ -370,6 +370,17 @@ html, body {
   animation: fadeInUp 0.8s 0.3s ease forwards;
 }
 
+/* 页面1 角标展开标题 */
+.loader-title-anim {
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  margin-bottom: 12px;
+  opacity: 0;
+  animation: expandText 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  color: var(--white);
+}
+
 .intro-icon {
   font-size: 64px;
   margin-bottom: 16px;
