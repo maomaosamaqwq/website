@@ -106,14 +106,7 @@ const ParticlePage = {
       this.conversations = [];
     }
 
-    if (this.conversations.length === 0) {
-      this.conversations = [
-        { id: '1', title: '帮我写一个 Python 脚本', date: new Date().toLocaleDateString() },
-        { id: '2', title: '解释量子计算基础', date: new Date().toLocaleDateString() },
-        { id: '3', title: '如何学习日语', date: new Date().toLocaleDateString() },
-      ];
-      this.saveConversations();
-    }
+    // 如果本地没有对话，不写假数据，让用户通过「開始する」新建
   },
 
   saveConversations() {

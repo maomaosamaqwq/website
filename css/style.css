@@ -1107,29 +1107,6 @@ html, body {
   cursor: not-allowed;
 }
 
-/* 打字指示器 */
-.typing-indicator {
-  display: inline-flex;
-  gap: 4px;
-  padding: 12px 16px;
-}
-
-.typing-indicator span {
-  width: 6px;
-  height: 6px;
-  background: var(--orange);
-  border-radius: 50%;
-  animation: typingBounce 1.4s infinite;
-}
-
-.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typingBounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-8px); opacity: 1; }
-}
-
 /* 响应式 */
 @media (max-width: 768px) {
   .intro-content {
@@ -1225,7 +1202,7 @@ html, body {
 }
 
 .login-input:focus {
-  border-color: var(--orange, #f59e0b);
+  border-color: var(--orange);
 }
 
 .login-input::placeholder {
@@ -1238,7 +1215,7 @@ html, body {
   padding: 12px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, #f59e0b, #f97316);
+  background: linear-gradient(135deg, var(--orange), var(--orange-light));
   color: #fff;
   font-size: 16px;
   font-weight: 600;
@@ -1266,5 +1243,5 @@ html, body {
 }
 
 .login-register-link:hover {
-  color: var(--orange, #f59e0b);
+  color: var(--orange);
 }

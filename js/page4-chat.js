@@ -13,6 +13,10 @@ const ChatPage = {
   cloudApiUrl: 'https://api.仙狐大人.我爱你',
   cloudApiUrlFallback: 'https://maomao-api.b35a90441d9dea81207b863b34b6516a.workers.dev',
 
+  /* ---- getter 统一放前面，只定义一次 ---- */
+  get loginPage() { return document.getElementById('login-page'); },
+  get chatPage() { return document.getElementById('chat-messages'); },
+
   init() {
     this.canvas = document.getElementById('neuron-canvas');
     if (!this.canvas) return;
@@ -44,18 +48,25 @@ const ChatPage = {
       registerLink.addEventListener('click', () => this.toggleRegister());
     }
 
-    // 如果有 token，直接进入聊天
+    // 如果有 token，先验证有效性再决定进聊天还是显示登录页
     if (this.token) {
-      this.loginPage.style.display = 'none';
-      this.chatPage.style.display = 'flex';
+      this.verifyToken().then(valid => {
+        if (valid) {
+          this.loginPage.style.display = 'none';
+          this.chatPage.style.display = 'flex';
+          // 主动拉云端数据
+          setTimeout(() => this.tryCloudSync(), 200);
+        } else {
+          // token 无效，清除并显示登录页
+          this.clearToken();
+          this.loginPage.style.display = '';
+        }
+      });
     }
 
     // 聊天界面初始化
     this.initChat();
   },
-
-  get loginPage() { return document.getElementById('login-page'); },
-  get chatPage() { return document.getElementById('chat-messages'); },
 
   // 注册/登录模式切换
   isRegisterMode: false,
@@ -77,8 +88,23 @@ const ChatPage = {
     }
   },
 
-  get loginPage() { return document.getElementById('login-page'); },
-  get chatPage() { return document.getElementById('chat-messages'); },
+  /** 校验当前 token 是否有效 —— 调用 /verify 端点 */
+  async verifyToken() {
+    if (!this.token) return false;
+    try {
+      const resp = await this.apiFetch('/verify');
+      return resp && resp.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  /** 清除本地 token 数据 */
+  clearToken() {
+    this.token = '';
+    localStorage.removeItem('maomao_token');
+    // 保留 username 方便重新登录时自动填入
+  },
 
   initChat() {
     const currentConv = localStorage.getItem('maomao_current_conv');
@@ -127,7 +153,6 @@ const ChatPage = {
 
     this.renderHistoryList();
     this.renderMessages();
-    setTimeout(() => this.tryCloudSync(), 200);
   },
 
   /* ========== 登录 ========== */
@@ -190,18 +215,40 @@ const ChatPage = {
           ...fetchOpts,
           signal: AbortSignal.timeout(10000)
         });
-        if (resp.ok || resp.status === 401) return resp;
+        // 401 时尝试刷新 token（回登录页），但不在此处处理以免破坏调用链
+        if (resp.ok) return resp;
+        if (resp.status === 401) {
+          console.warn('Token 无效，需要重新登录');
+          // 标记状态，由调用方决定是否跳转
+          return resp;
+        }
       } catch {}
     }
     return null;
   },
 
-  /* ========== 云端同步 ========== */
+  /** 当收到 401 时，清除 token 并跳回登录页 */
+  handleUnauthorized() {
+    if (!this.token) return; // 已经在登录页了
+    this.clearToken();
+    this.loginPage.style.display = '';
+    this.chatPage.style.display = 'none';
+    alert('登录已过期，请重新登录');
+  },
+
+  /* ========== 云端同步（合并而非覆盖） ========== */
   async tryCloudSync() {
     if (!this.token) return;
     try {
       const convResp = await this.apiFetch('/conversations');
-      if (convResp && convResp.ok) {
+      if (!convResp) return;
+
+      if (convResp.status === 401) {
+        this.handleUnauthorized();
+        return;
+      }
+
+      if (convResp.ok) {
         const cloudConvs = await convResp.json();
         
         let localConvs = [];
@@ -211,9 +258,23 @@ const ChatPage = {
         } catch {}
 
         if (Array.isArray(cloudConvs) && cloudConvs.length > 0) {
-          localStorage.setItem('maomao_conversations', JSON.stringify(cloudConvs));
+          // === 修复: 合并而非覆盖 ===
+          // 用 Map 以 id 去重，云的优先（有云端存储更完整）
+          const mergedMap = new Map();
+          // 先把本地的放进去
+          for (const c of localConvs) {
+            mergedMap.set(c.id, c);
+          }
+          // 云的覆盖（因为云可能有多设备更新的更完整数据）
+          for (const c of cloudConvs) {
+            mergedMap.set(c.id, c);
+          }
+          // 再检查云上有但本地没有的消息数据，拉取补齐
+          const merged = Array.from(mergedMap.values());
+          localStorage.setItem('maomao_conversations', JSON.stringify(merged));
           this.renderHistoryList();
           
+          // 同步当前对话的消息
           if (this.currentConvId) {
             const msgResp = await this.apiFetch(`/messages/${this.currentConvId}`);
             if (msgResp && msgResp.ok) {
@@ -225,28 +286,32 @@ const ChatPage = {
               }
             }
           }
-        } 
-        
-        if (Array.isArray(localConvs) && localConvs.length > 0) {
-          await this.apiFetch('/conversations', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localConvs),
-          });
-          for (const conv of localConvs) {
-            const msgs = localStorage.getItem(`maomao_messages_${conv.id}`);
-            if (msgs) {
-              await this.apiFetch(`/messages/${conv.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: msgs,
-              });
-            }
-          }
+        } else if (Array.isArray(localConvs) && localConvs.length > 0) {
+          // 本地有数据但云端没有 → 上传本地数据
+          await this.uploadLocalData(localConvs);
         }
       }
     } catch (e) {
       console.log('云端同步失败:', e.message);
+    }
+  },
+
+  /** 上传本地数据到云端 */
+  async uploadLocalData(localConvs) {
+    await this.apiFetch('/conversations', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(localConvs),
+    });
+    for (const conv of localConvs) {
+      const msgs = localStorage.getItem(`maomao_messages_${conv.id}`);
+      if (msgs) {
+        await this.apiFetch(`/messages/${conv.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: msgs,
+        });
+      }
     }
   },
 
@@ -259,6 +324,10 @@ const ChatPage = {
         body: JSON.stringify(this.messages),
       });
       if (!msgResp) return;
+      if (msgResp.status === 401) {
+        this.handleUnauthorized();
+        return;
+      }
       
       let conversations = [];
       try {
@@ -290,11 +359,6 @@ const ChatPage = {
     }
   },
 
-  /* ========== 进入聊天 ========== */
-  enterChat() {
-    // 登录成功时已经显示聊天页
-  },
-
   /* ========== 消息管理 ========== */
   loadMessages(convId) {
     try {
@@ -317,12 +381,16 @@ const ChatPage = {
       return `<p>${this.escapeHtml(text)}</p>`;
     }
     let html = marked.parse(text, { breaks: true, gfm: true });
+    return html;
+  },
+
+  /** 流式完成后统一高亮代码块（性能优化） */
+  highlightAllCodeBlocks(container) {
     if (typeof hljs !== 'undefined') {
-      html = html.replace(/<pre><code class="language-(\w+)">/g, (match, lang) => {
-        return `<pre><code class="language-${lang}">`;
+      container.querySelectorAll('pre code').forEach(block => {
+        hljs.highlightElement(block);
       });
     }
-    return html;
   },
 
   renderMessages() {
@@ -338,11 +406,6 @@ const ChatPage = {
       
       if (msg.role === 'assistant') {
         contentDiv.innerHTML = this.renderMarkdown(msg.content);
-        if (typeof hljs !== 'undefined') {
-          contentDiv.querySelectorAll('pre code').forEach(block => {
-            hljs.highlightElement(block);
-          });
-        }
       } else {
         contentDiv.textContent = msg.content;
       }
@@ -351,6 +414,8 @@ const ChatPage = {
       container.appendChild(div);
     });
 
+    // 统一高亮
+    this.highlightAllCodeBlocks(container);
     container.scrollTop = container.scrollHeight;
     this.updateTokenCounter();
   },
@@ -363,7 +428,8 @@ const ChatPage = {
     this.messages.forEach(m => {
       const chineseChars = (m.content.match(/[\u4e00-\u9fff]/g) || []).length;
       const otherChars = m.content.length - chineseChars;
-      totalChars += Math.ceil(chineseChars * 1.5 + otherChars * 0.25);
+      // 调整估算：英文约 0.3 token/字符，中文约 0.7 token/字符
+      totalChars += Math.ceil(chineseChars * 0.7 + otherChars * 0.3);
     });
     
     const maxTokens = 128000;
@@ -445,6 +511,8 @@ const ChatPage = {
     }
 
     this.messages.push({ role: 'user', content });
+    // 先保存消息到本地，防止流式异常时丢失
+    this.saveMessages();
     this.renderMessages();
     input.value = '';
     input.style.height = 'auto';
@@ -473,6 +541,11 @@ const ChatPage = {
         throw new Error('无法连接到服务器，请稍后再试');
       }
 
+      if (response.status === 401) {
+        this.handleUnauthorized();
+        throw new Error('登录已过期，请重新登录');
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = '';
@@ -492,6 +565,7 @@ const ChatPage = {
         if (done) break;
 
         const chunk = decoder.decode(value);
+        // 修复: 用 \n 而非 \\n 分割
         const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
 
         for (const line of lines) {
@@ -504,16 +578,13 @@ const ChatPage = {
             assistantContent += delta;
             
             contentDiv.innerHTML = this.renderMarkdown(assistantContent);
-            if (typeof hljs !== 'undefined') {
-              contentDiv.querySelectorAll('pre code').forEach(block => {
-                hljs.highlightElement(block);
-              });
-            }
-            
             container.scrollTop = container.scrollHeight;
           } catch {}
         }
       }
+
+      // 流式结束后统一高亮
+      this.highlightAllCodeBlocks(contentDiv);
 
       this.messages.push({ role: 'assistant', content: assistantContent });
       this.saveMessages();
@@ -522,6 +593,8 @@ const ChatPage = {
 
     } catch (err) {
       this.hideTyping();
+      // 如果流式中途异常，但 assistant 还没 push 进 messages，需要把已保存的用户消息保存起来
+      // （用户消息已经保存，安全）
       const container = document.getElementById('messages-container');
       const errorDiv = document.createElement('div');
       errorDiv.className = 'message assistant';
@@ -714,6 +787,14 @@ const ChatPage = {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  },
+
+  /* ========== 侧边栏切换 ========== */
+  toggleSidebar() {
+    const sidebar = document.querySelector('.chat-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
   },
 
   /* ========== 生命周期 ========== */

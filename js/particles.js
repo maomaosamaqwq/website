@@ -10,16 +10,16 @@ class ParticleSystem {
     this.mouseY = -1000;
     this.running = false;
     this.options = {
-      count: options.count || 100,
-      speed: options.speed || 0.5,
-      size: options.size || 2,
-      color: options.color || '#444444',
-      connectDistance: options.connectDistance || 150,
-      connectOpacity: options.connectOpacity || 0.15,
-      repulsionRadius: options.repulsionRadius || 80,
-      repulsionStrength: options.repulsionStrength || 2,
-      repulsionEnabled: options.repulsionEnabled || false,
-      topicParticles: options.topicParticles || new Set(),
+      count: 100,
+      speed: 0.5,
+      size: 2,
+      color: '#444444',
+      connectDistance: 150,
+      connectOpacity: 0.15,
+      repulsionRadius: 80,
+      repulsionStrength: 2,
+      repulsionEnabled: false,
+      topicParticles: new Set(),
       ...options
     };
 
