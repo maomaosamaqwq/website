@@ -6,9 +6,7 @@
 
 ## 🌐 访问地址
 
-- **主域名：** [仙狐大人.我爱你](https://仙狐大人.我爱你)
-- **备用域名：** https://maomaosamaqwq.github.io/website/
-- **API：** https://api.仙狐大人.我爱你
+- [仙狐大人.我爱你](https://仙狐大人.我爱你)
 
 ## ✨ 功能特色
 
@@ -58,8 +56,6 @@ git clone https://github.com/maomaosamaqwq/website.git
 cd website
 # 直接用浏览器打开 index.html 即可
 ```
-
-⚠️ 注意：本地打开时无法使用 API 功能和云端存储，需要部署到支持 HTTPS 的环境。
 
 ## 💬 加入交流
 
