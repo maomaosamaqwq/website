@@ -70,7 +70,20 @@
   <!-- 页面4：对话/配置页 -->
   <section id="page-chat" class="page">
     <canvas id="neuron-canvas"></canvas>
-    <div class="chat-container">
+    
+    <!-- 登录页 -->
+    <div class="login-page" id="login-page">
+      <div class="login-box">
+        <div class="login-cat">🐱</div>
+        <h2 class="login-title">猫猫</h2>
+        <p class="login-desc">输入密码开始聊天</p>
+        <input type="password" id="login-input" placeholder="请输入密码" class="login-input">
+        <button class="login-btn" id="btn-login">登录</button>
+      </div>
+    </div>
+
+    <!-- 聊天界面 -->
+    <div class="chat-container" id="chat-messages" style="display:none;">
       <!-- 移动端遮罩 -->
       <div class="sidebar-overlay" id="sidebar-overlay"></div>
       <div class="chat-sidebar">
@@ -83,26 +96,23 @@
         </div>
         <div class="sidebar-footer">
           <button class="btn-sync" id="btn-sync" title="同步云端数据">🔄</button>
-          <button class="btn-settings" id="btn-settings">⚙️</button>
         </div>
       </div>
       <div class="chat-main">
-        <div class="chat-messages" id="chat-messages">
-          <div class="chat-actions">
-            <button id="btn-export">📥 导出</button>
-            <button id="btn-import">📤 导入</button>
-          </div>
-          <div class="messages-container" id="messages-container">
-            <!-- 消息动态生成 -->
-          </div>
-          <div class="token-counter" id="token-counter">≈0 / 128k tokens</div>
-          <div class="chat-input-area">
-            <button class="btn-menu-toggle" id="btn-menu-toggle">☰</button>
-            <textarea id="chat-input" placeholder="输入消息..." rows="1"></textarea>
-            <button class="btn-search-toggle" id="btn-search-toggle" title="联网搜索：已关闭">🌐</button>
-            <button class="btn-voice" id="btn-voice">🎤</button>
-            <button class="btn-send" id="btn-send">送信</button>
-          </div>
+        <div class="chat-actions">
+          <button id="btn-export">📥 导出</button>
+          <button id="btn-import">📤 导入</button>
+        </div>
+        <div class="messages-container" id="messages-container">
+          <!-- 消息动态生成 -->
+        </div>
+        <div class="token-counter" id="token-counter">≈0 / 128k tokens</div>
+        <div class="chat-input-area">
+          <button class="btn-menu-toggle" id="btn-menu-toggle">☰</button>
+          <textarea id="chat-input" placeholder="输入消息..." rows="1"></textarea>
+          <button class="btn-search-toggle" id="btn-search-toggle" title="联网搜索：已关闭">🌐</button>
+          <button class="btn-voice" id="btn-voice">🎤</button>
+          <button class="btn-send" id="btn-send">送信</button>
         </div>
       </div>
     </div>

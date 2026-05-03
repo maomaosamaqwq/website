@@ -1,5 +1,5 @@
 /* ============================
-   page4-chat.js — 聊天界面逻辑（云端版）
+   page4-chat.js — 聊天界面逻辑（云端版 + 登录）
    ============================ */
 const ChatPage = {
   canvas: null,
@@ -9,6 +9,7 @@ const ChatPage = {
   isActive: false,
   isStreaming: false,
   useSearch: false,
+  token: '',
   cloudApiUrl: 'https://api.仙狐大人.我爱你',
   cloudApiUrlFallback: 'https://maomao-api.b35a90441d9dea81207b863b34b6516a.workers.dev',
 
@@ -24,6 +25,29 @@ const ChatPage = {
       connectOpacity: 0.08,
     });
 
+    // 读取已保存的 token
+    this.token = localStorage.getItem('maomao_token') || '';
+
+    // 登录相关
+    document.getElementById('btn-login').addEventListener('click', () => this.login());
+    document.getElementById('login-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.login();
+    });
+
+    // 如果有 token，先验证是否有效，有效则进入聊天
+    if (this.token) {
+      this.loginPage.style.display = 'none';
+      this.chatPage.style.display = 'flex';
+    }
+
+    // 聊天界面初始化
+    this.initChat();
+  },
+
+  get loginPage() { return document.getElementById('login-page'); },
+  get chatPage() { return document.getElementById('chat-messages'); },
+
+  initChat() {
     const currentConv = localStorage.getItem('maomao_current_conv');
     if (currentConv) {
       try {
@@ -48,40 +72,95 @@ const ChatPage = {
       e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
     });
 
-    // 语音按钮
     if (document.getElementById('btn-voice')) {
       document.getElementById('btn-voice').addEventListener('click', () => this.toggleVoiceInput());
     }
 
-    // 导出
     document.getElementById('btn-export').addEventListener('click', () => this.exportChat());
     document.getElementById('btn-import').addEventListener('click', () => this.importChat());
 
-    // 移动端菜单
     document.getElementById('btn-menu-toggle').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('sidebar-overlay').addEventListener('click', () => this.toggleSidebar());
 
-    // 联网搜索开关
     const searchToggle = document.getElementById('btn-search-toggle');
     if (searchToggle) {
       searchToggle.addEventListener('click', () => this.toggleSearch());
     }
 
-    // 同步按钮
     const syncBtn = document.getElementById('btn-sync');
     if (syncBtn) {
       syncBtn.addEventListener('click', () => this.manualSync());
     }
 
-    // 开箱即用，直接进入聊天
-    this.enterChat();
-
-    // 立即从云端同步数据（延迟一点等页面渲染完成）
+    this.renderHistoryList();
+    this.renderMessages();
     setTimeout(() => this.tryCloudSync(), 200);
+  },
+
+  /* ========== 登录 ========== */
+  async login() {
+    const input = document.getElementById('login-input');
+    const password = input.value.trim();
+    if (!password) return;
+
+    const btn = document.getElementById('btn-login');
+    btn.textContent = '登录中...';
+    btn.disabled = true;
+
+    try {
+      const resp = await this.apiFetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+
+      if (!resp) {
+        alert('无法连接到服务器，请稍后重试');
+        return;
+      }
+
+      const data = await resp.json();
+
+      if (data.success) {
+        this.token = data.token;
+        localStorage.setItem('maomao_token', this.token);
+        
+        this.loginPage.style.display = 'none';
+        this.chatPage.style.display = 'flex';
+        
+        // 登录成功，同步数据
+        setTimeout(() => this.tryCloudSync(), 200);
+      } else {
+        alert('密码错误，请重试');
+      }
+    } catch (e) {
+      alert('登录失败: ' + e.message);
+    } finally {
+      btn.textContent = '登录';
+      btn.disabled = false;
+    }
+  },
+
+  /* ========== API 请求（带 token + 双域名 fallback） ========== */
+  async apiFetch(path, options = {}) {
+    const headers = { ...options.headers, 'Authorization': `Bearer ${this.token}` };
+    const fetchOpts = { ...options, headers };
+
+    for (const baseUrl of [this.cloudApiUrl, this.cloudApiUrlFallback]) {
+      try {
+        const resp = await fetch(`${baseUrl}${path}`, {
+          ...fetchOpts,
+          signal: AbortSignal.timeout(10000)
+        });
+        if (resp.ok || resp.status === 401) return resp;
+      } catch {}
+    }
+    return null;
   },
 
   /* ========== 云端同步 ========== */
   async tryCloudSync() {
+    if (!this.token) return;
     try {
       const convResp = await this.apiFetch('/conversations');
       if (convResp && convResp.ok) {
@@ -93,12 +172,10 @@ const ChatPage = {
           localConvs = saved ? JSON.parse(saved) : [];
         } catch {}
 
-        // 如果云端有对话列表，用云端的（跨设备同步）
         if (Array.isArray(cloudConvs) && cloudConvs.length > 0) {
           localStorage.setItem('maomao_conversations', JSON.stringify(cloudConvs));
           this.renderHistoryList();
           
-          // 如果有当前对话且云端有消息，加载云端消息
           if (this.currentConvId) {
             const msgResp = await this.apiFetch(`/messages/${this.currentConvId}`);
             if (msgResp && msgResp.ok) {
@@ -112,15 +189,12 @@ const ChatPage = {
           }
         } 
         
-        // 如果本地有对话但云端没有，把本地上传到云端
         if (Array.isArray(localConvs) && localConvs.length > 0) {
-          // 上传对话列表
           await this.apiFetch('/conversations', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localConvs),
           });
-          // 上传每条对话的消息
           for (const conv of localConvs) {
             const msgs = localStorage.getItem(`maomao_messages_${conv.id}`);
             if (msgs) {
@@ -134,13 +208,12 @@ const ChatPage = {
         }
       }
     } catch (e) {
-      console.log('云端同步失败，使用本地数据:', e.message);
+      console.log('云端同步失败:', e.message);
     }
   },
 
   async syncToCloud() {
-    if (!this.currentConvId) return;
-    // 尝试同步（静默失败，不阻塞）
+    if (!this.currentConvId || !this.token) return;
     try {
       const msgResp = await this.apiFetch(`/messages/${this.currentConvId}`, {
         method: 'PUT',
@@ -159,17 +232,29 @@ const ChatPage = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(conversations),
       });
-    } catch (e) {
-      // 静默失败
+    } catch (e) {}
+  },
+
+  /* ========== 手动同步 ========== */
+  async manualSync() {
+    const btn = document.getElementById('btn-sync');
+    if (btn) {
+      btn.textContent = '⏳';
+      btn.style.pointerEvents = 'none';
+    }
+    await this.tryCloudSync();
+    if (btn) {
+      btn.textContent = '🔄';
+      btn.style.pointerEvents = '';
+      btn.style.animation = 'none';
+      btn.offsetHeight;
+      btn.style.animation = 'syncFlash 0.5s ease';
     }
   },
 
   /* ========== 进入聊天 ========== */
   enterChat() {
-    document.getElementById('api-config').style.display = 'none';
-    document.getElementById('chat-messages').style.display = 'flex';
-    this.renderHistoryList();
-    this.renderMessages();
+    // 登录成功时已经显示聊天页
   },
 
   /* ========== 消息管理 ========== */
@@ -189,7 +274,6 @@ const ChatPage = {
     }
   },
 
-  /* ========== Markdown 渲染 ========== */
   renderMarkdown(text) {
     if (typeof marked === 'undefined') {
       return `<p>${this.escapeHtml(text)}</p>`;
@@ -233,7 +317,6 @@ const ChatPage = {
     this.updateTokenCounter();
   },
 
-  /* ========== Token 计数器 ========== */
   updateTokenCounter() {
     const counter = document.getElementById('token-counter');
     if (!counter) return;
@@ -255,7 +338,6 @@ const ChatPage = {
     else if (pct > 50) counter.classList.add('warning');
   },
 
-  /* ========== 对话历史列表 ========== */
   renderHistoryList() {
     const list = document.getElementById('chat-history-list');
     list.innerHTML = '';
@@ -292,8 +374,7 @@ const ChatPage = {
     this.messages = [];
     this.currentConvId = null;
     document.getElementById('messages-container').innerHTML = '';
-    document.getElementById('api-config').style.display = 'flex';
-    document.getElementById('chat-messages').style.display = 'none';
+    document.getElementById('chat-input').focus();
     this.closeSidebar();
   },
 
@@ -339,7 +420,6 @@ const ChatPage = {
         content: m.content
       }));
 
-      // 通过 Workers 代理调用 DeepSeek API（带失败重试）
       let response = await this.apiFetch('/chat', {
         method: 'POST',
         headers: {
@@ -414,7 +494,6 @@ const ChatPage = {
     this.isStreaming = false;
   },
 
-  /* ========== 打字指示器（猫咪版） ========== */
   showTyping() {
     const container = document.getElementById('messages-container');
     const div = document.createElement('div');
@@ -545,7 +624,7 @@ const ChatPage = {
             this.importMessages(data);
             return;
           }
-          alert('无法识别的文件格式。支持的格式：导出的 .json 或 .md 文件。');
+          alert('无法识别的文件格式。支持格式：导出的 .json 或 .md 文件。');
         } catch {
           alert('无法解析文件，请确保是有效的聊天导出文件。');
         }
@@ -580,49 +659,6 @@ const ChatPage = {
     this.renderMessages();
     this.closeSidebar();
     this.syncToCloud();
-  },
-
-  /* ========== 带失败重试的 API 请求 ========== */
-  async apiFetch(path, options) {
-    // 先试主域名
-    try {
-      const resp = await fetch(`${this.cloudApiUrl}${path}`, {
-        ...options,
-        signal: AbortSignal.timeout(10000) // 10 秒超时
-      });
-      if (resp.ok) return resp;
-    } catch {}
-    
-    // 主域名失败，试备用域名
-    try {
-      const resp = await fetch(`${this.cloudApiUrlFallback}${path}`, {
-        ...options,
-        signal: AbortSignal.timeout(10000)
-      });
-      if (resp.ok) return resp;
-    } catch {}
-    
-    return null;
-  },
-
-  /* ========== 手动同步 ========== */
-  async manualSync() {
-    const btn = document.getElementById('btn-sync');
-    if (btn) {
-      btn.textContent = '⏳';
-      btn.style.pointerEvents = 'none';
-    }
-    
-    await this.tryCloudSync();
-    
-    if (btn) {
-      btn.textContent = '🔄';
-      btn.style.pointerEvents = '';
-      // 闪烁提示
-      btn.style.animation = 'none';
-      btn.offsetHeight; // 触发回流
-      btn.style.animation = 'syncFlash 0.5s ease';
-    }
   },
 
   /* ========== 联网搜索开关 ========== */
