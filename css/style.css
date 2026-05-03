@@ -1253,3 +1253,14 @@ html, body {
 .login-register-link:hover {
   color: var(--orange);
 }
+
+.version-tag {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: monospace;
+  user-select: none;
+  pointer-events: none;
+}
