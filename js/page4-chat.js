@@ -10,6 +10,7 @@ const ChatPage = {
   isStreaming: false,
   useSearch: false,
   cloudApiUrl: 'https://api.仙狐大人.我爱你',
+  cloudApiUrlFallback: 'https://maomao-api.b35a90441d9dea81207b863b34b6516a.workers.dev',
 
   init() {
     this.canvas = document.getElementById('neuron-canvas');
@@ -76,7 +77,7 @@ const ChatPage = {
   /* ========== 云端同步 ========== */
   async tryCloudSync() {
     try {
-      const convResp = await fetch(`${this.cloudApiUrl}/conversations`);
+      const convResp = await this.apiFetch('/conversations');
       if (convResp.ok) {
         const cloudConvs = await convResp.json();
         if (Array.isArray(cloudConvs) && cloudConvs.length > 0) {
@@ -89,7 +90,7 @@ const ChatPage = {
           localStorage.setItem('maomao_conversations', JSON.stringify(cloudConvs));
           
           if (this.currentConvId) {
-            const msgResp = await fetch(`${this.cloudApiUrl}/messages/${this.currentConvId}`);
+            const msgResp = await this.apiFetch(`/messages/${this.currentConvId}`);
             if (msgResp.ok) {
               const cloudMsgs = await msgResp.json();
               if (Array.isArray(cloudMsgs) && cloudMsgs.length > 0) {
@@ -109,25 +110,27 @@ const ChatPage = {
 
   async syncToCloud() {
     if (!this.currentConvId) return;
+    // 尝试同步（静默失败，不阻塞）
     try {
-      await fetch(`${this.cloudApiUrl}/messages/${this.currentConvId}`, {
+      const msgResp = await this.apiFetch(`/messages/${this.currentConvId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.messages),
       });
+      if (!msgResp) return;
       
       let conversations = [];
       try {
         const saved = localStorage.getItem('maomao_conversations');
         conversations = saved ? JSON.parse(saved) : [];
       } catch {}
-      await fetch(`${this.cloudApiUrl}/conversations`, {
+      await this.apiFetch('/conversations', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(conversations),
       });
     } catch (e) {
-      console.log('云端同步失败:', e.message);
+      // 静默失败
     }
   },
 
@@ -306,8 +309,8 @@ const ChatPage = {
         content: m.content
       }));
 
-      // 通过 Workers 代理调用 DeepSeek API
-      const response = await fetch(`${this.cloudApiUrl}/chat`, {
+      // 通过 Workers 代理调用 DeepSeek API（带失败重试）
+      let response = await this.apiFetch('/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -318,8 +321,8 @@ const ChatPage = {
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`请求失败: ${response.status}`);
+      if (!response) {
+        throw new Error('无法连接到服务器，请稍后再试');
       }
 
       const reader = response.body.getReader();
@@ -548,6 +551,29 @@ const ChatPage = {
     this.renderMessages();
     this.closeSidebar();
     this.syncToCloud();
+  },
+
+  /* ========== 带失败重试的 API 请求 ========== */
+  async apiFetch(path, options) {
+    // 先试主域名
+    try {
+      const resp = await fetch(`${this.cloudApiUrl}${path}`, {
+        ...options,
+        signal: AbortSignal.timeout(10000) // 10 秒超时
+      });
+      if (resp.ok) return resp;
+    } catch {}
+    
+    // 主域名失败，试备用域名
+    try {
+      const resp = await fetch(`${this.cloudApiUrlFallback}${path}`, {
+        ...options,
+        signal: AbortSignal.timeout(10000)
+      });
+      if (resp.ok) return resp;
+    } catch {}
+    
+    return null;
   },
 
   /* ========== 联网搜索开关 ========== */
