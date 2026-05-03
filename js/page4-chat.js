@@ -70,7 +70,7 @@ const ChatPage = {
     // 开箱即用，直接进入聊天
     this.enterChat();
 
-    // 尝试从云端同步数据
+    // 立即从云端同步数据
     this.tryCloudSync();
   },
 
@@ -78,29 +78,53 @@ const ChatPage = {
   async tryCloudSync() {
     try {
       const convResp = await this.apiFetch('/conversations');
-      if (convResp.ok) {
+      if (convResp && convResp.ok) {
         const cloudConvs = await convResp.json();
+        
+        let localConvs = [];
+        try {
+          const saved = localStorage.getItem('maomao_conversations');
+          localConvs = saved ? JSON.parse(saved) : [];
+        } catch {}
+
+        // 如果云端有对话列表，用云端的（跨设备同步）
         if (Array.isArray(cloudConvs) && cloudConvs.length > 0) {
-          let localConvs = [];
-          try {
-            const saved = localStorage.getItem('maomao_conversations');
-            localConvs = saved ? JSON.parse(saved) : [];
-          } catch {}
-          
           localStorage.setItem('maomao_conversations', JSON.stringify(cloudConvs));
+          this.renderHistoryList();
           
+          // 如果有当前对话且云端有消息，加载云端消息
           if (this.currentConvId) {
             const msgResp = await this.apiFetch(`/messages/${this.currentConvId}`);
-            if (msgResp.ok) {
+            if (msgResp && msgResp.ok) {
               const cloudMsgs = await msgResp.json();
               if (Array.isArray(cloudMsgs) && cloudMsgs.length > 0) {
                 this.messages = cloudMsgs;
                 this.renderMessages();
+                return;
               }
             }
           }
-          
-          this.renderHistoryList();
+        } 
+        
+        // 如果本地有对话但云端没有，把本地上传到云端
+        if (Array.isArray(localConvs) && localConvs.length > 0) {
+          // 上传对话列表
+          await this.apiFetch('/conversations', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localConvs),
+          });
+          // 上传每条对话的消息
+          for (const conv of localConvs) {
+            const msgs = localStorage.getItem(`maomao_messages_${conv.id}`);
+            if (msgs) {
+              await this.apiFetch(`/messages/${conv.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: msgs,
+              });
+            }
+          }
         }
       }
     } catch (e) {
