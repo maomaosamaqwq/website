@@ -9,6 +9,7 @@ const ChatPage = {
   currentConvId: null,
   isActive: false,
   isStreaming: false,
+  cloudApiUrl: 'https://api.仙狐大人.我爱你',
 
   init() {
     this.canvas = document.getElementById('neuron-canvas');
@@ -73,6 +74,74 @@ const ChatPage = {
     if (this.apiKey) {
       this.enterChat();
     }
+
+    // 尝试从云端同步数据（不阻塞）
+    this.tryCloudSync();
+  },
+
+  /* ========== 云端同步 ========== */
+  async tryCloudSync() {
+    try {
+      // 获取云端对话列表
+      const convResp = await fetch(`${this.cloudApiUrl}/conversations`);
+      if (convResp.ok) {
+        const cloudConvs = await convResp.json();
+        if (Array.isArray(cloudConvs) && cloudConvs.length > 0) {
+          // 合并云端和本地对话列表
+          let localConvs = [];
+          try {
+            const saved = localStorage.getItem('maomao_conversations');
+            localConvs = saved ? JSON.parse(saved) : [];
+          } catch {}
+          
+          // 用云端的（优先云端，假设云端是最新的）
+          localStorage.setItem('maomao_conversations', JSON.stringify(cloudConvs));
+          
+          // 如果当前有对话，尝试加载云端消息
+          if (this.currentConvId) {
+            const msgResp = await fetch(`${this.cloudApiUrl}/messages/${this.currentConvId}`);
+            if (msgResp.ok) {
+              const cloudMsgs = await msgResp.json();
+              if (Array.isArray(cloudMsgs) && cloudMsgs.length > 0) {
+                this.messages = cloudMsgs;
+                this.renderMessages();
+              }
+            }
+          }
+          
+          this.renderHistoryList();
+        }
+      }
+    } catch (e) {
+      // 云端不可用，静默失败，继续用本地数据
+      console.log('云端同步失败，使用本地数据:', e.message);
+    }
+  },
+
+  async syncToCloud() {
+    if (!this.currentConvId) return;
+    try {
+      // 同步消息
+      await fetch(`${this.cloudApiUrl}/messages/${this.currentConvId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.messages),
+      });
+      
+      // 同步对话列表
+      let conversations = [];
+      try {
+        const saved = localStorage.getItem('maomao_conversations');
+        conversations = saved ? JSON.parse(saved) : [];
+      } catch {}
+      await fetch(`${this.cloudApiUrl}/conversations`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(conversations),
+      });
+    } catch (e) {
+      console.log('云端同步失败:', e.message);
+    }
   },
 
   /* ========== 侧边栏 ========== */
@@ -119,6 +188,8 @@ const ChatPage = {
   saveMessages() {
     if (this.currentConvId) {
       localStorage.setItem(`maomao_messages_${this.currentConvId}`, JSON.stringify(this.messages));
+      // 同步到云端
+      this.syncToCloud();
     }
   },
 
@@ -269,6 +340,8 @@ const ChatPage = {
       });
       localStorage.setItem('maomao_conversations', JSON.stringify(conversations));
       this.renderHistoryList();
+      // 同步到云端
+      this.syncToCloud();
     }
 
     this.messages.push({ role: 'user', content });
@@ -563,6 +636,8 @@ const ChatPage = {
     this.renderHistoryList();
     this.renderMessages();
     this.closeSidebar();
+    // 同步到云端
+    this.syncToCloud();
   },
 
   /* ========== 工具函数 ========== */
