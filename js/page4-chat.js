@@ -158,7 +158,7 @@ const ChatPage = {
     this.renderMessages();
   },
 
-  /* ========== 登录 ========== */
+  /* ========== 登录 & 注册 ========== */
   async login() {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value.trim();
@@ -172,18 +172,15 @@ const ChatPage = {
     btn.disabled = true;
 
     try {
-      // 自动判断：先试登录
-      let endpoint = '/login';
+      const endpoint = this.isRegisterMode ? '/register' : '/login';
 
       // 注册模式下获取 Turnstile token
       let turnstileToken = null;
-      if (typeof turnstile !== 'undefined') {
+      if (this.isRegisterMode && typeof turnstile !== 'undefined') {
         turnstileToken = turnstile.getResponse();
         if (!turnstileToken) {
-          // 尝试重新渲染 Turnstile
-          turnstile.reset();
           alert('请完成人机验证');
-          btn.textContent = this.isRegisterMode ? '注册' : '登录';
+          btn.textContent = '注册';
           btn.disabled = false;
           return;
         }
@@ -192,83 +189,36 @@ const ChatPage = {
       const body = { username, password };
       if (turnstileToken) body.cfTurnstileToken = turnstileToken;
 
-      let resp = await this.apiFetch(endpoint, {
+      const resp = await this.apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
 
-      // 如果登录返回"用户不存在"，自动切换到注册
-      if (resp) {
-        const data = await resp.json();
-        if (!resp.ok && data.error === '用户不存在' && !this.isRegisterMode) {
-          // 获取新的 Turnstile token
-          let newTurnstileToken = null;
-          if (typeof turnstile !== 'undefined') {
-            turnstile.reset();
-            newTurnstileToken = turnstile.getResponse();
-            if (!newTurnstileToken) {
-              // Turnstile 刚重置还没渲染好，直接 alert 让用户手动勾选
-              alert('请重新完成人机验证，然后再次点击按钮注册');
-              btn.textContent = '登录 / 注册';
-              btn.disabled = false;
-              return;
-            }
-          }
-
-          // 自动切成注册，直接 fetch（不通过 apiFetch 避免带 token）
-          this.isRegisterMode = true;
-          const regBody = { username, password };
-          if (newTurnstileToken) regBody.cfTurnstileToken = newTurnstileToken;
-
-          let regResp = null;
-          for (const baseUrl of [this.cloudApiUrl, this.cloudApiUrlFallback]) {
-            try {
-              regResp = await fetch(baseUrl + '/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(regBody),
-                signal: AbortSignal.timeout(10000)
-              });
-              if (regResp.ok || regResp.status !== 0) break;
-            } catch {}
-          }
-
-          const regData = regResp ? await regResp.json() : null;
-          if (regData && regData.success) {
-            this.token = regData.token;
-            localStorage.setItem('maomao_token', this.token);
-            localStorage.setItem('maomao_username', username);
-            this.loginPage.style.display = 'none';
-            this.chatPage.style.display = 'flex';
-            setTimeout(() => this.tryCloudSync(), 200);
-            return;
-          } else {
-            alert(regData?.error || '注册失败');
-            turnstile.reset();
-            btn.textContent = '登录 / 注册';
-            btn.disabled = false;
-            return;
-          }
-        } else if (data.success) {
-          this.token = data.token;
-          localStorage.setItem('maomao_token', this.token);
-          localStorage.setItem('maomao_username', username);
-          this.loginPage.style.display = 'none';
-          this.chatPage.style.display = 'flex';
-          setTimeout(() => this.tryCloudSync(), 200);
-          return;
-        } else {
-          alert(data.error || '操作失败');
-          turnstile.reset();
-        }
-      } else {
+      if (!resp) {
         alert('无法连接到服务器，请稍后重试');
+        return;
+      }
+
+      const data = await resp.json();
+
+      if (data.success) {
+        this.token = data.token;
+        localStorage.setItem('maomao_token', this.token);
+        localStorage.setItem('maomao_username', username);
+        
+        this.loginPage.style.display = 'none';
+        this.chatPage.style.display = 'flex';
+        
+        // 登录成功，同步数据
+        setTimeout(() => this.tryCloudSync(), 200);
+      } else {
+        alert(data.error || '操作失败');
       }
     } catch (e) {
       alert('操作失败: ' + e.message);
     } finally {
-      btn.textContent = '登录 / 注册';
+      btn.textContent = this.isRegisterMode ? '注册' : '登录';
       btn.disabled = false;
     }
   },
