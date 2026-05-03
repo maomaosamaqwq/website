@@ -568,6 +568,21 @@ const ChatPage = {
         throw new Error('登录已过期，请重新登录');
       }
 
+      // 调试：打印响应信息
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('Chat API 错误:', response.status, errText);
+        throw new Error('服务器错误 (' + response.status + '): ' + errText.slice(0, 100));
+      }
+
+      // 检查 content-type 是否为流式
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/event-stream')) {
+        const bodyText = await response.text();
+        console.error('非流式响应:', contentType, bodyText.slice(0, 200));
+        throw new Error('API 返回了非流式响应，可能服务异常');
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantContent = '';
