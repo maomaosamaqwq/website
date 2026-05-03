@@ -8,6 +8,7 @@ const ChatPage = {
   currentConvId: null,
   isActive: false,
   isStreaming: false,
+  useSearch: false,
   cloudApiUrl: 'https://api.仙狐大人.我爱你',
 
   init() {
@@ -58,6 +59,12 @@ const ChatPage = {
     // 移动端菜单
     document.getElementById('btn-menu-toggle').addEventListener('click', () => this.toggleSidebar());
     document.getElementById('sidebar-overlay').addEventListener('click', () => this.toggleSidebar());
+
+    // 联网搜索开关
+    const searchToggle = document.getElementById('btn-search-toggle');
+    if (searchToggle) {
+      searchToggle.addEventListener('click', () => this.toggleSearch());
+    }
 
     // 开箱即用，直接进入聊天
     this.enterChat();
@@ -305,7 +312,10 @@ const ChatPage = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages: apiMessages })
+        body: JSON.stringify({
+          messages: apiMessages,
+          useSearch: this.useSearch
+        })
       });
 
       if (!response.ok) {
@@ -538,6 +548,16 @@ const ChatPage = {
     this.renderMessages();
     this.closeSidebar();
     this.syncToCloud();
+  },
+
+  /* ========== 联网搜索开关 ========== */
+  toggleSearch() {
+    this.useSearch = !this.useSearch;
+    const btn = document.getElementById('btn-search-toggle');
+    if (btn) {
+      btn.classList.toggle('active', this.useSearch);
+      btn.title = this.useSearch ? '联网搜索：已开启' : '联网搜索：已关闭';
+    }
   },
 
   /* ========== 工具函数 ========== */
