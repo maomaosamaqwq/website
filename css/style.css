@@ -583,6 +583,30 @@ html, body {
   left: 0;
 }
 
+/* QQ 群按钮 */
+#page-intro .btn-qq {
+  position: relative;
+  z-index: 11;
+  pointer-events: auto;
+  margin-top: 16px;
+  padding: 10px 32px;
+  background: rgba(68, 68, 68, 0.06);
+  border: 1px solid var(--orange);
+  color: var(--orange);
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  opacity: 0;
+  animation: fadeInUp 0.6s 2.5s ease forwards;
+}
+
+#page-intro .btn-qq:hover {
+  background: var(--orange);
+  color: var(--dark);
+}
+
 /* ============================
    页面3：粒子选择页
    ============================ */
