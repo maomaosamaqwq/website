@@ -202,15 +202,39 @@ const ChatPage = {
       if (resp) {
         const data = await resp.json();
         if (!resp.ok && data.error === '用户不存在' && !this.isRegisterMode) {
-          // 自动切成注册
+          // 获取新的 Turnstile token
+          let newTurnstileToken = null;
+          if (typeof turnstile !== 'undefined') {
+            turnstile.reset();
+            newTurnstileToken = turnstile.getResponse();
+            if (!newTurnstileToken) {
+              // Turnstile 刚重置还没渲染好，直接 alert 让用户手动勾选
+              alert('请重新完成人机验证，然后再次点击按钮注册');
+              btn.textContent = '登录 / 注册';
+              btn.disabled = false;
+              return;
+            }
+          }
+
+          // 自动切成注册，直接 fetch（不通过 apiFetch 避免带 token）
           this.isRegisterMode = true;
-          endpoint = '/register';
-          resp = await this.apiFetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          });
-          const regData = resp ? await resp.json() : null;
+          const regBody = { username, password };
+          if (newTurnstileToken) regBody.cfTurnstileToken = newTurnstileToken;
+
+          let regResp = null;
+          for (const baseUrl of [this.cloudApiUrl, this.cloudApiUrlFallback]) {
+            try {
+              regResp = await fetch(baseUrl + '/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(regBody),
+                signal: AbortSignal.timeout(10000)
+              });
+              if (regResp.ok || regResp.status !== 0) break;
+            } catch {}
+          }
+
+          const regData = regResp ? await regResp.json() : null;
           if (regData && regData.success) {
             this.token = regData.token;
             localStorage.setItem('maomao_token', this.token);
