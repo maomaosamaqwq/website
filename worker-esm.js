@@ -144,10 +144,29 @@ export default {
       // POST /login — 登录
       if (request.method === 'POST' && path === '/login') {
         const body = await request.json();
-        const { username, password } = body;
+        const { username, password, cfTurnstileToken } = body;
 
         if (!username || !password) {
           return new Response(JSON.stringify({ success: false, error: '用户名和密码不能为空' }), { headers: corsHeaders });
+        }
+
+        // Turnstile 验证
+        const TURNSTILE_SECRET_KEY = '0x4AAAAAADIYNHVUNrHl83rTe43RnDmJDPU';
+        if (cfTurnstileToken) {
+          const turnstileResp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              secret: TURNSTILE_SECRET_KEY,
+              response: cfTurnstileToken
+            })
+          });
+          const turnstileResult = await turnstileResp.json();
+          if (!turnstileResult.success) {
+            return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新后重试' }), { headers: corsHeaders });
+          }
+        } else {
+          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { headers: corsHeaders });
         }
 
         const userData = await env.MAOMAO_CHAT.get(`user_info_${username}`);
@@ -217,7 +236,7 @@ export default {
         }
 
         const searchResult = message.length > 5
-          ? await searchWeb(message.substring(0, 100)).catch(() => null)
+          ? await this.searchWeb(message.substring(0, 100)).catch(() => null)
           : null;
 
         if (searchResult) {
@@ -235,9 +254,9 @@ export default {
               'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
             },
             body: JSON.stringify({
-              model: 'deepseek-chat',
+              model: 'deepseek-v4-flash',
               messages: deepseekMessages,
-              stream: true,
+              stream: false,
               max_tokens: 4096,
               temperature: 0.7
             })
@@ -247,61 +266,22 @@ export default {
             let errMsg = `AI 服务暂时不可用（${deepseekResp.status}）`;
             try {
               const errBody = await deepseekResp.json();
-              if (errBody.error?.message) errMsg += `：${errBody.error.message.substring(0, 100)}`;
+              if (errBody.error?.message) errMsg += `：${errBody.error.message.substring(0, 200)}`;
             } catch {}
             return new Response(JSON.stringify({ error: errMsg, status: deepseekResp.status }), { headers: corsHeaders });
           }
 
-          const { readable, writable } = new TransformStream();
-          const writer = writable.getWriter();
-          const encoder = new TextEncoder();
+          const result = await deepseekResp.json();
+          const content = result.choices?.[0]?.message?.content || '抱歉，我没有得到回复~';
 
-          ctx.waitUntil((async () => {
-            const reader = deepseekResp.body.getReader();
-            const decoder = new TextDecoder();
-            let fullContent = '';
+          if (content) {
+            msgs.push({ role: 'assistant', content, timestamp: Date.now() });
+            await env.MAOMAO_CHAT.put(msgKey, JSON.stringify(msgs));
+          }
 
-            try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
-
-                for (const line of lines) {
-                  if (!line.startsWith('data: ')) continue;
-                  const data = line.substring(6);
-                  if (data === '[DONE]') continue;
-
-                  try {
-                    const parsed = JSON.parse(data);
-                    const content = parsed.choices?.[0]?.delta?.content || '';
-                    if (content) {
-                      fullContent += content;
-                      const escaped = content.replace(/\n/g, '\\n');
-                      await writer.write(encoder.encode(`data: ${JSON.stringify({ content: escaped })}\n\n`));
-                    }
-                  } catch {}
-                }
-              }
-
-              if (fullContent) {
-                msgs.push({ role: 'assistant', content: fullContent, timestamp: Date.now() });
-                await env.MAOMAO_CHAT.put(msgKey, JSON.stringify(msgs));
-              }
-            } catch (err) {
-              // 流式异常时用户消息已保存
-            } finally {
-              await writer.close();
-            }
-          })());
-
-          return new Response(readable, {
+          return new Response(JSON.stringify({ content }), {
             headers: {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
+              'Content-Type': 'application/json',
               ...corsHeaders
             }
           });
@@ -345,6 +325,43 @@ export default {
         const data = await env.MAOMAO_CHAT.get(`user_convs_${userId}`);
         const convList = data ? JSON.parse(data) : [];
         return new Response(JSON.stringify(convList), { headers: corsHeaders });
+      }
+
+      // PUT /conversations — 保存对话列表
+      if (request.method === 'PUT' && path === '/conversations') {
+        const authHeader = request.headers.get('Authorization') || '';
+        const token = authHeader.replace('Bearer ', '');
+
+        const userId = await env.MAOMAO_CHAT.get(`token_map_${token}`);
+        if (!userId) {
+          return new Response(JSON.stringify({ error: '未授权，请登录' }), {
+            status: 401,
+            headers: corsHeaders
+          });
+        }
+
+        const convList = await request.json();
+        await env.MAOMAO_CHAT.put(`user_convs_${userId}`, JSON.stringify(convList));
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+      }
+
+      // PUT /messages/{conversationId} — 保存对话消息列表
+      if (request.method === 'PUT' && path.startsWith('/messages/')) {
+        const authHeader = request.headers.get('Authorization') || '';
+        const token = authHeader.replace('Bearer ', '');
+
+        const userId = await env.MAOMAO_CHAT.get(`token_map_${token}`);
+        if (!userId) {
+          return new Response(JSON.stringify({ error: '未授权，请登录' }), {
+            status: 401,
+            headers: corsHeaders
+          });
+        }
+
+        const convId = path.replace('/messages/', '');
+        const msgs = await request.json();
+        await env.MAOMAO_CHAT.put(`messages_${convId}`, JSON.stringify(msgs));
+        return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
       }
 
       // 404

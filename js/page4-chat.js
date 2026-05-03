@@ -174,13 +174,20 @@ const ChatPage = {
     try {
       const endpoint = this.isRegisterMode ? '/register' : '/login';
 
-      // 注册模式下获取 Turnstile token
+      // 获取 Turnstile token（登录和注册都需要）
       let turnstileToken = null;
-      if (this.isRegisterMode && typeof turnstile !== 'undefined') {
+      if (typeof turnstile !== 'undefined') {
         turnstileToken = turnstile.getResponse();
         if (!turnstileToken) {
+          // 重置并重试
+          turnstile.reset();
+          // 等 1 秒获取新 token
+          await new Promise(r => setTimeout(r, 1000));
+          turnstileToken = turnstile.getResponse();
+        }
+        if (!turnstileToken) {
           alert('请完成人机验证');
-          btn.textContent = '注册';
+          btn.textContent = this.isRegisterMode ? '注册' : '登录';
           btn.disabled = false;
           return;
         }
