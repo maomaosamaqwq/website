@@ -569,24 +569,15 @@ const ChatPage = {
         throw new Error('登录已过期，请重新登录');
       }
 
-      // 调试：打印响应信息
       if (!response.ok) {
         const errText = await response.text();
         console.error('Chat API 错误:', response.status, errText);
         throw new Error('服务器错误 (' + response.status + '): ' + errText.slice(0, 100));
       }
 
-      // 检查 content-type 是否为流式
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('text/event-stream')) {
-        const bodyText = await response.text();
-        console.error('非流式响应:', contentType, bodyText.slice(0, 200));
-        throw new Error('API 返回了非流式响应，可能服务异常');
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantContent = '';
+      // 非流式响应：一次性获取完整回复
+      const result = await response.json();
+      const assistantContent = result.content || '抱歉，我没有得到回复~';
 
       this.hideTyping();
 
@@ -598,33 +589,9 @@ const ChatPage = {
       msgDiv.appendChild(contentDiv);
       container.appendChild(msgDiv);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        // 修复: 用 \n 而非 \\n 分割
-        const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
-
-        for (const line of lines) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            // 兼容两种格式：标准 OpenAI 流式格式 和 Worker 自定义 { content } 格式
-            const delta = parsed.choices?.[0]?.delta?.content || parsed.content || '';
-            if (!delta) continue;
-            assistantContent += delta;
-
-            contentDiv.innerHTML = this.renderMarkdown(assistantContent);
-            container.scrollTop = container.scrollHeight;
-          } catch {}
-        }
-      }
-
-      // 流式结束后统一高亮
+      contentDiv.innerHTML = this.renderMarkdown(assistantContent);
       this.highlightAllCodeBlocks(contentDiv);
+      container.scrollTop = container.scrollHeight;
 
       this.messages.push({ role: 'assistant', content: assistantContent });
       this.saveMessages();
