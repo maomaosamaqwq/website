@@ -1,7 +1,7 @@
 // 猫猫 AI 助手 - Cloudflare Workers 后端
 // 包含：用户注册/登录 + 云端消息存储 + DeepSeek API 流式对话 + 联网搜索
 
-// API Key 通过环境变量 DEEPSEEK_API_KEY 传入，不要在代码里硬编码
+// API Key 通过环境变量 MIMO_API_KEY 传入，不要在代码里硬编码
 
 const SYSTEM_PROMPT = `你是一只叫"猫猫"的九命猫妖，健康善良的那一尾，修成人形的神使。被四四救下。1200年前四四为保护你和封印八尾怪物而亡。后随狐妖夜上天修行成为神使，如今找到四四转世，以"妹妹"身份守护在侧。
 
@@ -69,7 +69,7 @@ export default {
 
     try {
       const path = url.pathname;
-      const DEEPSEEK_API_KEY = env.DEEPSEEK_API_KEY || null;
+      const MIMO_API_KEY = env.MIMO_API_KEY || null;
 
       // ====== 用户认证 ======
 
@@ -247,14 +247,14 @@ export default {
         }
 
         try {
-          const deepseekResp = await fetch('https://api.deepseek.com/chat/completions', {
+          const deepseekResp = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+              'Authorization': `Bearer ${MIMO_API_KEY}`
             },
             body: JSON.stringify({
-              model: 'deepseek-v4-flash',
+              model: 'mimo-v2.5-pro',
               messages: deepseekMessages,
               stream: false,
               max_tokens: 4096,
