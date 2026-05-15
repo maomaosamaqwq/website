@@ -174,27 +174,10 @@ const ChatPage = {
     try {
       const endpoint = this.isRegisterMode ? '/register' : '/login';
 
-      // 获取 Turnstile token（登录和注册都需要）
-      let turnstileToken = null;
-      if (typeof turnstile !== 'undefined') {
-        turnstileToken = turnstile.getResponse();
-        if (!turnstileToken) {
-          // 重置并重试
-          turnstile.reset();
-          // 等 1 秒获取新 token
-          await new Promise(r => setTimeout(r, 1000));
-          turnstileToken = turnstile.getResponse();
-        }
-        if (!turnstileToken) {
-          alert('请完成人机验证');
-          btn.textContent = this.isRegisterMode ? '注册' : '登录';
-          btn.disabled = false;
-          return;
-        }
-      }
-
+      // 使用进入网站时已验证的 Turnstile token
+      const introTurnstileToken = localStorage.getItem('maomao_turnstile_token') || '';
       const body = { username, password };
-      if (turnstileToken) body.cfTurnstileToken = turnstileToken;
+      if (introTurnstileToken) body.cfTurnstileToken = introTurnstileToken;
 
       const resp = await this.apiFetch(endpoint, {
         method: 'POST',

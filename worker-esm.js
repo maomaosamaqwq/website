@@ -247,14 +247,14 @@ export default {
         }
 
         try {
-          const deepseekResp = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
+          const deepseekResp = await fetch('https://api.deepseek.com/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${MIMO_API_KEY}`
+              'Authorization': `Bearer ${env.MIMO_API_KEY}`
             },
             body: JSON.stringify({
-              model: 'mimo-v2.5-pro',
+              model: 'deepseek-v4-pro',
               messages: deepseekMessages,
               stream: false,
               max_tokens: 4096,

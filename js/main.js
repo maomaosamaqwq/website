@@ -2,11 +2,12 @@
    main.js — 主控制器
    ============================ */
 const MainController = {
-  currentPage: 'page-loader',
+  currentPage: 'page-turnstile',
   pages: {},
 
   init() {
     this.pages = {
+      'page-turnstile': TurnstilePage,
       'page-loader': LoaderPage,
       'page-intro': IntroPage,
       'page-particles': ParticlePage,
@@ -17,7 +18,8 @@ const MainController = {
       if (page.init) page.init();
     });
 
-    if (LoaderPage.start) LoaderPage.start();
+    // 从验证页开始
+    if (TurnstilePage.start) TurnstilePage.start();
   },
 
   switchPage(fromId, toId) {

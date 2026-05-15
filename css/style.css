@@ -1137,6 +1137,55 @@ html, body {
 }
 
 /* ============================
+   人机验证页面
+   ============================ */
+.turnstile-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+}
+
+.turnstile-box {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 40px;
+  width: 320px;
+  max-width: 90vw;
+  text-align: center;
+  animation: loginFadeIn 0.6s ease;
+}
+
+.turnstile-box h2 {
+  color: #fff;
+  font-size: 28px;
+  margin: 0 0 8px 0;
+  font-weight: 700;
+}
+
+.turnstile-box p {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  margin: 0 0 16px 0;
+}
+
+.turnstile-cat {
+  font-size: 60px;
+  margin-bottom: 10px;
+  animation: catBounce 2s ease-in-out infinite;
+}
+
+.turnstile-hint {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+/* ============================
    登录页面
    ============================ */
 .login-page {
