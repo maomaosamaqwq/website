@@ -48,9 +48,6 @@ const ChatPage = {
       registerLink.addEventListener('click', () => this.toggleRegister());
     }
 
-    // 登录按钮也支持切换模式——点登录就是登录，点注册就是注册，不变了
-    // 但在注册失败切换到登录时重置 Turnstile
-
     // 如果有 token，先验证有效性再决定进聊天还是显示登录页
     if (this.token) {
       this.verifyToken().then(valid => {
@@ -174,10 +171,7 @@ const ChatPage = {
     try {
       const endpoint = this.isRegisterMode ? '/register' : '/login';
 
-      // 使用进入网站时已验证的 Turnstile token
-      const introTurnstileToken = localStorage.getItem('maomao_turnstile_token') || '';
       const body = { username, password };
-      if (introTurnstileToken) body.cfTurnstileToken = introTurnstileToken;
 
       const resp = await this.apiFetch(endpoint, {
         method: 'POST',

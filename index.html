@@ -14,25 +14,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <!-- Turnstile -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
-  <!-- 页面0：人机验证页 -->
-  <section id="page-turnstile" class="page active">
-    <div class="turnstile-page">
-      <div class="turnstile-box">
-        <div class="turnstile-cat">🐱</div>
-        <h2>猫猫</h2>
-        <p>请完成验证后进入</p>
-        <div class="cf-turnstile" data-sitekey="0x4AAAAAADIYNHzN1vYcbr3x" id="intro-turnstile" style="margin: 16px auto;"></div>
-        <p class="turnstile-hint" id="turnstile-hint">正在验证...</p>
-      </div>
-    </div>
-  </section>
-
   <!-- 页面1：加载页 -->
-  <section id="page-loader" class="page">
+  <section id="page-loader" class="page active">
     <div class="loader-left">
       <div class="progress-container">
         <div class="progress-track">
@@ -136,7 +121,6 @@
     </div>
   </section>
 
-  <script src="js/page0-turnstile.js"></script>
   <script src="js/particles.js"></script>
   <script src="js/page1-loader.js"></script>
   <script src="js/page2-intro.js"></script>

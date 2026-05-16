@@ -56,7 +56,7 @@ function generateToken() {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, cf-turnstile-response',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export default {
@@ -95,32 +95,13 @@ export default {
         return new Response(JSON.stringify({ valid: true }), { headers: corsHeaders });
       }
 
-      // POST /register — 注册（带 Turnstile 验证）
+      // POST /register — 注册
       if (request.method === 'POST' && path === '/register') {
         const body = await request.json();
-        const { username, password, cfTurnstileToken } = body;
+        const { username, password } = body;
 
         if (!username || !password || username.length < 1 || password.length < 1) {
           return new Response(JSON.stringify({ success: false, error: '用户名和密码不能为空' }), { headers: corsHeaders });
-        }
-
-        // Turnstile 验证
-        const TURNSTILE_SECRET_KEY = '0x4AAAAAADIYNHVUNrHl83rTe43RnDmJDPU';
-        if (cfTurnstileToken) {
-          const turnstileResp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              secret: TURNSTILE_SECRET_KEY,
-              response: cfTurnstileToken
-            })
-          });
-          const turnstileResult = await turnstileResp.json();
-          if (!turnstileResult.success) {
-            return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新后重试' }), { headers: corsHeaders });
-          }
-        } else {
-          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { headers: corsHeaders });
         }
 
         const existingUser = await env.MAOMAO_CHAT.get(`user_info_${username}`);
@@ -144,29 +125,10 @@ export default {
       // POST /login — 登录
       if (request.method === 'POST' && path === '/login') {
         const body = await request.json();
-        const { username, password, cfTurnstileToken } = body;
+        const { username, password } = body;
 
         if (!username || !password) {
           return new Response(JSON.stringify({ success: false, error: '用户名和密码不能为空' }), { headers: corsHeaders });
-        }
-
-        // Turnstile 验证
-        const TURNSTILE_SECRET_KEY = '0x4AAAAAADIYNHVUNrHl83rTe43RnDmJDPU';
-        if (cfTurnstileToken) {
-          const turnstileResp = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              secret: TURNSTILE_SECRET_KEY,
-              response: cfTurnstileToken
-            })
-          });
-          const turnstileResult = await turnstileResp.json();
-          if (!turnstileResult.success) {
-            return new Response(JSON.stringify({ success: false, error: '人机验证失败，请刷新后重试' }), { headers: corsHeaders });
-          }
-        } else {
-          return new Response(JSON.stringify({ success: false, error: '请完成人机验证' }), { headers: corsHeaders });
         }
 
         const userData = await env.MAOMAO_CHAT.get(`user_info_${username}`);
