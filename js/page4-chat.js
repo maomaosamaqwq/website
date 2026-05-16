@@ -72,20 +72,13 @@ const ChatPage = {
   isRegisterMode: false,
 
   toggleRegister() {
-    this.isRegisterMode = !this.isRegisterMode;
-    const btn = document.getElementById('btn-login');
-    const link = document.getElementById('login-register-link');
-    const title = document.querySelector('.login-desc');
-    
-    if (this.isRegisterMode) {
-      btn.textContent = '注册';
-      link.textContent = '已有账号？登录';
-      title.textContent = '注册新账号';
-    } else {
-      btn.textContent = '登录';
-      link.textContent = '还没有账号？注册';
-      title.textContent = '输入账号密码开始聊天';
-    }
+    // 注册已迁移到AstrBot，引导用户
+    alert(
+      '🐱 注册功能已迁移到QQ机器人~\n\n' +
+      '请添加机器人好友后发送：\n注册 <密码>\n\n' +
+      '注册账号为你的QQ邮箱，例如：\n100001@qq.com\n\n' +
+      '如有疑问请联系管理员~'
+    );
   },
 
   /** 校验当前 token 是否有效 —— 调用 /verify 端点 */
